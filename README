@@ -2,6 +2,8 @@ Install
 
   pip install --user -e .
 
+  Requirements:
+  - For volume buttons: libpulse
 
 Uninstall
 

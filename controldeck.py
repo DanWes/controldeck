@@ -19,12 +19,20 @@ def process(args):
     print(f"{e} failed!")
 
 def volume(name):
-  return process(f'pamixer --get-volume --sink "{name}"')
+  try:
+    return process(f'pamixer --get-volume --sink "{name}"')
+  except OSError as e:
+    #n = process(r"pactl list sinks short | awk '{print $2}'").split()
+    #v = process(r"pactl list sinks | grep '^[[:space:]]Volume:' | sed -e 's,.* \([0-9][0-9]*\)%.*,\1,'").split()
+    #return v[n.index(name)]
+    print(e)
 
 def volume_decrease(name):
+  #process(f'pactl set-sink-volume "{name}" -5db')
   return process(f'pamixer --get-volume --sink "{name}" --decrease 5')
 
 def volume_increase(name):
+  #process(f'pactl set-sink-volume "{name}" -5db')
   return process(f'pamixer --get-volume --sink "{name}" --increase 5')
 
 class Button(Div):
