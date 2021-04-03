@@ -1,8 +1,11 @@
 #!/usr/bin/env python
+from os import path, sep, makedirs
 from subprocess import Popen, PIPE, STDOUT
 from configparser import ConfigParser, DuplicateSectionError
 from re import search, IGNORECASE
 from justpy import Div, WebPage, SetRoute, justpy
+
+APP_NAME = "ControlDeck"
 
 def process(args):
   try:
@@ -67,7 +70,7 @@ class ButtonSound(Div):
 
 @SetRoute('/')
 def application():
-  wp = WebPage(title="ControlDeck", body_classes="bg-gray-900")
+  wp = WebPage(title=APP_NAME, body_classes="bg-gray-900")
   wp.head_html = '<meta name="viewport" content="width=device-width, initial-scale=1">'
 
   # div = Div(classes="flex flex-wrap", a=wp)
@@ -76,13 +79,19 @@ def application():
   # Button(text="Sleep", command='systemctl suspend', a=div2)
 
   config = ConfigParser(strict=False)
-  volume_dict = {}
-  button_dict = {}
+  config_file = "controldeck.conf"
+  full_config_file_path = path.dirname(path.realpath(__file__)) + sep + config_file
+  if not path.exists(config_file):
+    config_folder = path.join(path.expanduser("~"), '.config', APP_NAME.lower())
+    makedirs(config_folder, exist_ok=True)
+    full_config_file_path = path.join(config_folder, config_file)
   try:
-    config.read('controldeck.conf')
+    config.read(full_config_file_path)
   except Exception as e:
     print(f"{e}")
   #print(config.sections())
+  volume_dict = {}
+  button_dict = {}
   for i in config.sections():
     iname = None
     iname = search("^([0-9]*.?)volume", i, flags=IGNORECASE)
