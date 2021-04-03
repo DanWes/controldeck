@@ -1,0 +1,8 @@
+Install
+
+  pip install --user -e .
+
+
+Uninstall
+
+  pip uninstall controldeck

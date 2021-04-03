@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import sys
 from os import path, sep, makedirs
 from subprocess import Popen, PIPE, STDOUT
 from configparser import ConfigParser, DuplicateSectionError
@@ -129,5 +130,8 @@ def application():
 
   return wp
 
-if __name__ == '__main__':
+def main():
   justpy()
+
+if __name__ == '__main__':
+  sys.exit(main())
