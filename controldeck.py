@@ -131,7 +131,7 @@ def application():
   return wp
 
 def main():
-  justpy()
+  justpy(host="0.0.0.0")
 
 if __name__ == '__main__':
   sys.exit(main())
