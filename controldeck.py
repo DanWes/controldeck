@@ -19,13 +19,15 @@ def process(args):
     print(f"{e} failed!")
 
 def volume(name):
-  try:
-    return process(f'pamixer --get-volume --sink "{name}"')
-  except OSError as e:
-    #n = process(r"pactl list sinks short | awk '{print $2}'").split()
-    #v = process(r"pactl list sinks | grep '^[[:space:]]Volume:' | sed -e 's,.* \([0-9][0-9]*\)%.*,\1,'").split()
-    #return v[n.index(name)]
-    print(e)
+  result = process(f'pamixer --get-volume --sink "{name}"')
+  if search("pamixer: command not found", result) is not None:
+    n = process(r"pactl list sinks short | awk '{print $2}'").split()
+    v = process(r"pactl list sinks | grep '^[[:space:]]Volume:' | sed -e 's,.* \([0-9][0-9]*\)%.*,\1,'").split()
+    if name in n:
+      result = v[n.index(name)]
+    else:
+      result = '--'
+  return result
 
 def volume_decrease(name):
   #process(f'pactl set-sink-volume "{name}" -5db')
