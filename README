@@ -6,3 +6,9 @@ Install
 Uninstall
 
   pip uninstall controldeck
+
+
+Configuration
+
+  ~/.config/controldeck/controldeck.conf
+  See example in example directory.
