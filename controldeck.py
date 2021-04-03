@@ -30,12 +30,20 @@ def volume(name):
   return result
 
 def volume_decrease(name):
-  #process(f'pactl set-sink-volume "{name}" -5db')
-  return process(f'pamixer --get-volume --sink "{name}" --decrease 5')
+  result = process(f'pamixer --get-volume --sink "{name}" --decrease 5')
+  if search("pamixer: command not found", result) is not None:
+    process(f'pactl set-sink-volume "{name}" -5%')
+    #process(f'pactl set-sink-volume "{name}" -5db')
+    result = volume(name)
+  return result
 
 def volume_increase(name):
-  #process(f'pactl set-sink-volume "{name}" -5db')
-  return process(f'pamixer --get-volume --sink "{name}" --increase 5')
+  result = process(f'pamixer --get-volume --sink "{name}" --increase 5')
+  if search("pamixer: command not found", result) is not None:
+    process(f'pactl set-sink-volume "{name}" +5%')
+    #process(f'pactl set-sink-volume "{name}" +5db')
+    result = volume(name)
+  return result
 
 class Button(Div):
   command = None
