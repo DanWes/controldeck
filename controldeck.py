@@ -133,10 +133,12 @@ def application():
       id = iname.group(1)[:-1]  # remove dot
       try:
         button_dict[id] += [{'text': i[iname.end(0)+1:],
-                             'command': config.get(i, 'command', fallback=None)}]
+                             'command': config.get(i, 'command', fallback=None),
+                             'icon': config.get(i, 'icon', fallback=None)}]
       except KeyError:
         button_dict[id] = [{'text': i[iname.end(0)+1:],
-                            'command': config.get(i, 'command', fallback=None)}]
+                            'command': config.get(i, 'command', fallback=None),
+                            'icon': config.get(i, 'icon', fallback=None)}]
   for i in volume_dict:
     for j in volume_dict[i]:
       if 'div'+i not in vars():
@@ -146,7 +148,10 @@ def application():
     for j in button_dict[i]:
       if 'div'+i not in vars():
         vars()['div'+i] = Div(classes="flex flex-wrap", a=wp)
-      Button(text=j['text'], command=j['command'], a=eval('div'+i))
+      if j['icon'] is not None:
+        Button(inner_html=f"<div class='fas fa-2x fa-{j['icon']}'><div>", command=j['command'], a=eval('div'+i))
+      else:
+        Button(text=j['text'], command=j['command'], a=eval('div'+i))
 
   if not wp.components:
     # config not found or empty, therefore insert an empty div to not get an error
