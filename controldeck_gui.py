@@ -4,7 +4,7 @@ from webview import create_window, start
 import controldeck
 
 def main():
-  if controldeck.process("ps -ef | grep -i controldeck.py | grep -v grep") == "":
+  if controldeck.process("ps -ef | grep -i controldeck | grep -v controldeck-gui | grep -v grep") == "":
     controldeck.main()
 
   config = controldeck.config_load()
