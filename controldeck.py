@@ -20,7 +20,9 @@ def process(args):
 
 def volume(name):
   result = process(f'pamixer --get-volume --sink "{name}"')
-  if search("pamixer: command not found", result) is not None:
+  if search("The sink doesn't exit", result):
+    result = "--"
+  elif search("pamixer: command not found", result) is not None:
     n = process(r"pactl list sinks short | awk '{print $2}'").split()
     v = process(r"pactl list sinks | grep '^[[:space:]]Volume:' | sed -e 's,.* \([0-9][0-9]*\)%.*,\1,'").split()
     if name in n:
