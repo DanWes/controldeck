@@ -2,7 +2,7 @@
 import sys
 from os import path, sep, makedirs
 from subprocess import Popen, PIPE, STDOUT
-from configparser import ConfigParser, DuplicateSectionError
+from configparser import ConfigParser
 from re import search, IGNORECASE
 from justpy import Div, WebPage, SetRoute, justpy
 
@@ -51,7 +51,7 @@ class Button(Div):
   command = None
   def __init__(self, **kwargs):
     super().__init__(**kwargs)
-    self.classes = "bg-gray-800 hover:bg-gray-700 w-20 h-20 m-2 p-1 rounded-lg font-bold flex items-center text-center justify-center select-none"
+    self.classes = "bg-gray-800 hover:bg-gray-700 text-gray-500 w-20 h-20 m-2 p-1 rounded-lg font-bold flex items-center text-center justify-center select-none"
     if self.command is not None:
       def click(self, msg):
         print(self.command)
@@ -81,7 +81,7 @@ class ButtonSound(Div):
     Button(inner_html=f'{self.description}<br> - 5%', click=self.decrease, a=self.div)
     Button(inner_html=f'{self.description}<br> + 5%', click=self.increase, a=self.div)
     self.add(self.div)
-    self.volume = Div(text=f"Volume: {volume(self.name)}%", classes="text-center -mt-2", a=self)
+    self.volume = Div(text=f"Volume: {volume(self.name)}%", classes="text-gray-600 text-center -mt-2", a=self)
 
   async def decrease(self, msg):
     self.volume.text = f'Volume: {volume_decrease(self.name)}%'
