@@ -47,6 +47,21 @@ def volume_increase(name):
     result = volume(name)
   return result
 
+def config_load():
+  config = ConfigParser(strict=False)
+  config_file = "controldeck.conf"
+  full_config_file_path = path.dirname(path.realpath(__file__)) + sep + config_file
+  if not path.exists(config_file):
+    config_folder = path.join(path.expanduser("~"), '.config', APP_NAME.lower())
+    makedirs(config_folder, exist_ok=True)
+    full_config_file_path = path.join(config_folder, config_file)
+  try:
+    config.read(full_config_file_path)
+  except Exception as e:
+    print(f"{e}")
+  #print(config.sections())
+  return config
+
 class Button(Div):
   command = None
   def __init__(self, **kwargs):
@@ -99,18 +114,7 @@ def application():
   # div2 = Div(classes="flex flex-wrap", a=wp)
   # Button(text="Sleep", command='systemctl suspend', a=div2)
 
-  config = ConfigParser(strict=False)
-  config_file = "controldeck.conf"
-  full_config_file_path = path.dirname(path.realpath(__file__)) + sep + config_file
-  if not path.exists(config_file):
-    config_folder = path.join(path.expanduser("~"), '.config', APP_NAME.lower())
-    makedirs(config_folder, exist_ok=True)
-    full_config_file_path = path.join(config_folder, config_file)
-  try:
-    config.read(full_config_file_path)
-  except Exception as e:
-    print(f"{e}")
-  #print(config.sections())
+  config = config_load()
   volume_dict = {}
   button_dict = {}
   for i in config.sections():
