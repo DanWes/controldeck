@@ -203,9 +203,9 @@ def application(request):
         Button(empty=True, a=eval(var))
       elif 'icon-image' in j and j['icon-image'] != '':
         svg = ''
-        if path.isfile(j['icon-image']):
+        if path.isfile(path.expanduser(j['icon-image'])):
           try:
-            with open(j['icon-image']) as f:
+            with open(path.expanduser(j['icon-image'])) as f:
               svg = f.read()
           except Exception as e:
             print(f"{e}")
