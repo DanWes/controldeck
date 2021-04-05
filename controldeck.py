@@ -65,9 +65,13 @@ def config_load():
 
 class Button(Div):
   command = None
+  empty = None
   def __init__(self, **kwargs):
     super().__init__(**kwargs)
-    self.classes = "bg-gray-800 hover:bg-gray-700 text-gray-500 w-20 h-20 m-2 p-1 rounded-lg font-bold flex items-center text-center justify-center select-none"
+    if self.empty:
+      self.classes = "w-20 h-20 m-2 p-1 flex select-none"
+    else:
+      self.classes = "bg-gray-800 hover:bg-gray-700 text-gray-500 w-20 h-20 m-2 p-1 rounded-lg font-bold flex items-center text-center justify-center select-none"
     if self.command is not None:
       def click(self, msg):
         print(self.command)
@@ -142,6 +146,7 @@ def application(request):
   button_dict = {}
   for i in config.sections():
     iname = None
+    # volume buttons
     iname = search("^([0-9]*.?)volume", i, flags=IGNORECASE)
     if iname is not None:
       id = iname.group(1)[:-1]  # remove dot
@@ -153,14 +158,24 @@ def application(request):
         volume_dict[id] += tmp
       except KeyError:
         volume_dict[id] = tmp
+    # button
     iname = search("^([0-9]*.?)button", i, flags=IGNORECASE)
     if iname is not None:
       id = iname.group(1)[:-1]  # remove dot
-      tmp = [{'text': i[iname.end(0)+1:],
+      tmp = [{'type': 'normal', 'text': i[iname.end(0)+1:],
               'color-bg': config.get(i, 'color-bg', fallback=''),
               'color-fg': config.get(i, 'color-fg', fallback=''),
               'command': config.get(i, 'command', fallback=None),
               'icon': config.get(i, 'icon', fallback=None)}]
+      try:
+        button_dict[id] += tmp
+      except KeyError:
+        button_dict[id] = tmp
+    # empty
+    iname = search("^([0-9]*.?)empty", i, flags=IGNORECASE)
+    if iname is not None:
+      id = iname.group(1)[:-1]  # remove dot
+      tmp = [{'type': 'empty', 'text': i[iname.end(0)+1:]}]
       try:
         button_dict[id] += tmp
       except KeyError:
@@ -178,11 +193,14 @@ def application(request):
   for i in button_dict:
     var = var_prefix+i
     for j in button_dict[i]:
-      color_bg = f"background-color:{j['color-bg']};" if ishexcolor(j['color-bg']) else ''
-      color_fg = f"color:{j['color-fg']};" if ishexcolor(j['color-fg']) else ''
+      if j['type'] == 'normal':
+        color_bg = f"background-color:{j['color-bg']};" if ishexcolor(j['color-bg']) else ''
+        color_fg = f"color:{j['color-fg']};" if ishexcolor(j['color-fg']) else ''
       if var not in vars():
         vars()[var] = Div(classes="flex flex-wrap", a=wp)
-      if j['icon'] is not None:
+      if j['type'] == 'empty':
+        Button(empty=True, a=eval(var))
+      elif 'icon' in j and j['icon'] is not None:
         Button(inner_html=f"<i class='fa-2x {j['icon']}'><i>",
                style = color_bg + color_fg,
                command=j['command'], a=eval(var))
