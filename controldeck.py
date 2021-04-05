@@ -89,13 +89,14 @@ class ButtonSound(Div):
   name = None
   description = None
   volume = None
+  button_style = None
 
   def __init__(self, **kwargs):
     super().__init__(**kwargs)
     self.classes = "grid-rows-2"
     self.div = Div(classes="flex")
-    Button(inner_html=f'{self.description}<br> - 5%', click=self.decrease, a=self.div)
-    Button(inner_html=f'{self.description}<br> + 5%', click=self.increase, a=self.div)
+    Button(inner_html=f'{self.description}<br> - 5%', style=self.button_style, click=self.decrease, a=self.div)
+    Button(inner_html=f'{self.description}<br> + 5%', style=self.button_style, click=self.increase, a=self.div)
     self.add(self.div)
     self.volume = Div(text=f"Volume: {volume(self.name)}%", classes="text-gray-600 text-center -mt-2", a=self)
 
@@ -116,6 +117,9 @@ async def reload_all_instances(self, msg):
 
 async def kill_gui(self, msg):
   await process("pkill controldeck-gui")
+
+def ishexcolor(code):
+  return bool(search(r'^#(?:[0-9a-fA-F]{3}){1,2}$', code))
 
 @SetRoute('/')
 def application(request):
@@ -141,39 +145,51 @@ def application(request):
     iname = search("^([0-9]*.?)volume", i, flags=IGNORECASE)
     if iname is not None:
       id = iname.group(1)[:-1]  # remove dot
+      tmp = [{'description': i[iname.end(0)+1:],
+              'color-bg': config.get(i, 'color-bg', fallback=''),
+              'color-fg': config.get(i, 'color-fg', fallback=''),
+              'name': config.get(i, 'name', fallback=None)}]
       try:
-        volume_dict[id] += [{'description': i[iname.end(0)+1:],
-                             'name': config.get(i, 'name', fallback=None)}]
+        volume_dict[id] += tmp
       except KeyError:
-        volume_dict[id] = [{'description': i[iname.end(0)+1:],
-                            'name': config.get(i, 'name', fallback=None)}]
+        volume_dict[id] = tmp
     iname = search("^([0-9]*.?)button", i, flags=IGNORECASE)
     if iname is not None:
       id = iname.group(1)[:-1]  # remove dot
+      tmp = [{'text': i[iname.end(0)+1:],
+              'color-bg': config.get(i, 'color-bg', fallback=''),
+              'color-fg': config.get(i, 'color-fg', fallback=''),
+              'command': config.get(i, 'command', fallback=None),
+              'icon': config.get(i, 'icon', fallback=None)}]
       try:
-        button_dict[id] += [{'text': i[iname.end(0)+1:],
-                             'command': config.get(i, 'command', fallback=None),
-                             'icon': config.get(i, 'icon', fallback=None)}]
+        button_dict[id] += tmp
       except KeyError:
-        button_dict[id] = [{'text': i[iname.end(0)+1:],
-                            'command': config.get(i, 'command', fallback=None),
-                            'icon': config.get(i, 'icon', fallback=None)}]
+        button_dict[id] = tmp
   var_prefix = "_div"
   for i in volume_dict:
     var = var_prefix+i
     for j in volume_dict[i]:
       if var not in vars():
         vars()[var] = Div(classes="flex flex-wrap", a=wp)
-      ButtonSound(name=j['name'], description=j['description'], a=eval(var))
+      color_bg = f"background-color:{j['color-bg']};" if ishexcolor(j['color-bg']) else ''
+      color_fg = f"color:{j['color-fg']};" if ishexcolor(j['color-fg']) else ''
+      ButtonSound(name=j['name'], description=j['description'],
+                  button_style = color_bg + color_fg, a=eval(var))
   for i in button_dict:
     var = var_prefix+i
     for j in button_dict[i]:
+      color_bg = f"background-color:{j['color-bg']};" if ishexcolor(j['color-bg']) else ''
+      color_fg = f"color:{j['color-fg']};" if ishexcolor(j['color-fg']) else ''
       if var not in vars():
         vars()[var] = Div(classes="flex flex-wrap", a=wp)
       if j['icon'] is not None:
-        Button(inner_html=f"<i class='fa-2x {j['icon']}'><i>", command=j['command'], a=eval(var))
+        Button(inner_html=f"<i class='fa-2x {j['icon']}'><i>",
+               style = color_bg + color_fg,
+               command=j['command'], a=eval(var))
       else:
-        Button(text=j['text'], command=j['command'], a=eval(var))
+        Button(text=j['text'],
+               style = color_bg + color_fg,
+               command=j['command'], a=eval(var))
 
   if not wp.components:
     # config not found or empty, therefore insert an empty div to not get an error
