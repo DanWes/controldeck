@@ -4,17 +4,18 @@ from os import path, sep, makedirs
 from subprocess import Popen, PIPE, STDOUT
 from configparser import ConfigParser
 from re import search, IGNORECASE
-from justpy import Div, WebPage, SetRoute, justpy
+from justpy import Div, I, WebPage, SetRoute, justpy
 
 APP_NAME = "ControlDeck"
 
-def process(args):
+def process(args, output=True):
   try:
     # with shell=True args can be a string
     # detached process https://stackoverflow.com/a/65900355/992129 start_new_session
     # https://docs.python.org/3/library/subprocess.html#popen-constructor
     result = Popen(args, stdout=PIPE, stderr=STDOUT, shell=True, start_new_session=True)
-    return result.stdout.read().decode("utf-8").rstrip()
+    if output:
+      return result.stdout.read().decode("utf-8").rstrip()
   except Exception as e:
     print(f"{e} failed!")
 
@@ -104,15 +105,33 @@ class ButtonSound(Div):
   async def increase(self, msg):
     self.volume.text = f'Volume: {volume_increase(self.name)}%'
 
+async def reload(self, msg):
+  await msg.page.reload()
+
+async def reload_all_instances(self, msg):
+  "Reload all browser tabs that the page is rendered on"
+  for page in WebPage.instances.values():
+    if page.page_type == 'main':
+      await page.reload()
+
+async def kill_gui(self, msg):
+  await process("pkill controldeck-gui")
+
 @SetRoute('/')
-def application():
+def application(request):
   wp = WebPage(title=APP_NAME, body_classes="bg-gray-900")
+  wp.page_type = 'main'
   wp.head_html = '<meta name="viewport" content="width=device-width, initial-scale=1">'
 
   # div = Div(classes="flex flex-wrap", a=wp)
   # ButtonSound(name="Stream_sink", description="Stream sink", a=div)
   # div2 = Div(classes="flex flex-wrap", a=wp)
   # Button(text="Sleep", command='systemctl suspend', a=div2)
+
+  menu = Div(classes="fixed bottom-0 right-0 p-1 grid grid-col-1 select-none text-gray-500", a=wp)
+  I(classes="w-10 h-10 w-1 fa-2x fa-fw fas fa-redo-alt", click=reload, a=menu)
+  if "gui" in request.query_params:
+    I(classes="w-10 h-10 w-1 fa-2x fa-fw fas fa-window-close", click=kill_gui, a=menu)
 
   config = config_load()
   volume_dict = {}
@@ -139,19 +158,22 @@ def application():
         button_dict[id] = [{'text': i[iname.end(0)+1:],
                             'command': config.get(i, 'command', fallback=None),
                             'icon': config.get(i, 'icon', fallback=None)}]
+  var_prefix = "_div"
   for i in volume_dict:
+    var = var_prefix+i
     for j in volume_dict[i]:
-      if 'div'+i not in vars():
-        vars()['div'+i] = Div(classes="flex flex-wrap", a=wp)
-      ButtonSound(name=j['name'], description=j['description'], a=eval('div'+i))
+      if var not in vars():
+        vars()[var] = Div(classes="flex flex-wrap", a=wp)
+      ButtonSound(name=j['name'], description=j['description'], a=eval(var))
   for i in button_dict:
+    var = var_prefix+i
     for j in button_dict[i]:
-      if 'div'+i not in vars():
-        vars()['div'+i] = Div(classes="flex flex-wrap", a=wp)
+      if var not in vars():
+        vars()[var] = Div(classes="flex flex-wrap", a=wp)
       if j['icon'] is not None:
-        Button(inner_html=f"<div class='fas fa-2x fa-{j['icon']}'><div>", command=j['command'], a=eval('div'+i))
+        Button(inner_html=f"<i class='fa-2x {j['icon']}'><i>", command=j['command'], a=eval(var))
       else:
-        Button(text=j['text'], command=j['command'], a=eval('div'+i))
+        Button(text=j['text'], command=j['command'], a=eval(var))
 
   if not wp.components:
     # config not found or empty, therefore insert an empty div to not get an error

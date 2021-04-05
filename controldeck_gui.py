@@ -5,7 +5,7 @@ import controldeck
 
 def main():
   if controldeck.process("ps -ef | grep -i controldeck | grep -v controldeck-gui | grep -v grep") == "":
-    controldeck.main()
+    controldeck.process("controldeck &", output=False)
 
   config = controldeck.config_load()
   try:
@@ -46,7 +46,7 @@ def main():
   on_top = config.get('gui', 'always_on_top', fallback='False').title() == 'True'
 
   create_window("ControlDeck",
-                url="http://0.0.0.0:8000",
+                url="http://0.0.0.0:8000/?gui",
                 html=None,
                 js_api=None,
                 width=width,
