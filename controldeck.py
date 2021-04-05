@@ -4,7 +4,7 @@ from os import path, sep, makedirs
 from subprocess import Popen, PIPE, STDOUT
 from configparser import ConfigParser
 from re import search, IGNORECASE
-from justpy import Div, I, WebPage, SetRoute, justpy
+from justpy import Div, I, WebPage, SetRoute, parse_html, justpy
 
 APP_NAME = "ControlDeck"
 
@@ -79,13 +79,13 @@ class Button(Div):
         if isinstance(self.command, (list)):
           # e.g.: [['pkill', 'ArdourGUI'], ['systemctl', '--user', 'restart', 'pipewire', 'pipewire-pulse'], ['ardour6', '-n', 'productive-pipewire']]
           if isinstance(self.command[0], (list)):
-            [process(i) for i in self.command]
+            [process(i, False) for i in self.command]
           else:
             # e.g.: ['pkill', 'ArdourGUI']
-            process(self.command)
+            process(self.command, False)
         else:
           # e.g.: 'pkill ArdourGUI'
-          process(self.command)
+          process(self.command, False)
       self.on('click', click)
 
 class ButtonSound(Div):
@@ -166,7 +166,8 @@ def application(request):
               'color-bg': config.get(i, 'color-bg', fallback=''),
               'color-fg': config.get(i, 'color-fg', fallback=''),
               'command': config.get(i, 'command', fallback=None),
-              'icon': config.get(i, 'icon', fallback=None)}]
+              'icon': config.get(i, 'icon', fallback=''),
+              'icon-image': config.get(i, 'icon-image', fallback='')}]
       try:
         button_dict[id] += tmp
       except KeyError:
@@ -200,6 +201,29 @@ def application(request):
         vars()[var] = Div(classes="flex flex-wrap", a=wp)
       if j['type'] == 'empty':
         Button(empty=True, a=eval(var))
+      elif 'icon-image' in j and j['icon-image'] != '':
+        svg = ''
+        if path.isfile(j['icon-image']):
+          try:
+            with open(j['icon-image']) as f:
+              svg = f.read()
+          except Exception as e:
+            print(f"{e}")
+        try:  # svg with custom tags, as inkscape is using, cannot be interpreted
+          tmp = Button(style = color_bg, command=j['command'], a=eval(var))
+          tmp_svg = parse_html(svg)
+          #print(dir(tmp_svg)) # add_attribute
+          #print(tmp2.attributes)
+          # set width and height to viewBox to update width and height for scaling
+          w = tmp_svg.width if hasattr(tmp_svg, 'width') else "64"
+          h = tmp_svg.height if hasattr(tmp_svg, 'height') else "64"
+          vb = tmp_svg.viewBox if hasattr(tmp_svg, 'viewBox') else '0 0 ' + w + ' ' + h
+          tmp_svg.viewBox = vb
+          tmp_svg.width = 64
+          tmp_svg.height = 64
+          tmp += tmp_svg
+        except Exception as e:
+          print(f"[Error SVG]: {e}")
       elif 'icon' in j and j['icon'] is not None:
         Button(inner_html=f"<i class='fa-2x {j['icon']}'><i>",
                style = color_bg + color_fg,
