@@ -224,7 +224,7 @@ def application(request):
           tmp += tmp_svg
         except Exception as e:
           print(f"[Error SVG]: {e}")
-      elif 'icon' in j and j['icon'] is not None:
+      elif 'icon' in j and j['icon'] != '':
         Button(inner_html=f"<i class='fa-2x {j['icon']}'><i>",
                style = color_bg + color_fg,
                command=j['command'], a=eval(var))
