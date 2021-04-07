@@ -144,26 +144,19 @@ class ButtonSound(Div):
     super().__init__(**kwargs)
     self.classes = "grid-rows-2"
     self.div = Div(classes="flex")
-    #Button(inner_html=f'{self.description}<br> - 5%', click=self.decrease, a=self.div)
-    #Button(inner_html=f'{self.description}<br> + 5%', click=self.increase, a=self.div)
-    #Button(inner_html=f'{self.description}<br> (un)mute', click=self.mute, a=self.div)
-    Button(inner_html=f'- 5%', click=self.decrease, a=self.div)
-    Button(inner_html=f'+ 5%', click=self.increase, a=self.div)
-    Button(inner_html=f'toggle mute', click=self.mute, a=self.div)
+    Button(inner_html='- 5%', click=self.decrease, a=self.div)
+    Button(inner_html='+ 5%', click=self.increase, a=self.div)
+    Button(inner_html='toggle mute', click=self.mute, a=self.div)
     self.add(self.div)
-    #self.volume = Div(text=f"Volume: {volume(self.name)}", classes="text-gray-600 text-center -mt-2", a=self)
     self.volume = Div(text=f"{self.description}: {volume(self.name)}", classes="text-gray-600 text-center -mt-2", a=self)
 
   async def decrease(self, msg):
-    #self.volume.text = f'Volume: {volume_decrease(self.name)}'
     self.volume.text = f'{self.description}: {volume_decrease(self.name)}'
 
   async def increase(self, msg):
-    #self.volume.text = f'Volume: {volume_increase(self.name)}'
     self.volume.text = f'{self.description}: {volume_increase(self.name)}'
 
   async def mute(self, msg):
-    #self.volume.text = f'Volume: {volume_mute(self.name)}'
     self.volume.text = f'{self.description}: {volume_mute(self.name)}'
 
 async def reload(self, msg):
@@ -186,11 +179,6 @@ def application(request):
   wp = WebPage(title=APP_NAME, body_classes="bg-gray-900")
   wp.page_type = 'main'
   wp.head_html = '<meta name="viewport" content="width=device-width, initial-scale=1">'
-
-  # div = Div(classes="flex flex-wrap", a=wp)
-  # ButtonSound(name="Stream_sink", description="Stream sink", a=div)
-  # div2 = Div(classes="flex flex-wrap", a=wp)
-  # Button(text="Sleep", command='systemctl suspend', a=div2)
 
   menu = Div(classes="fixed bottom-0 right-0 p-1 grid grid-col-1 select-none text-gray-500", a=wp)
   I(classes="w-10 h-10 w-1 fa-2x fa-fw fas fa-redo-alt", click=reload, a=menu)
