@@ -101,6 +101,7 @@ class Button(Div):
   color_fg = ''
   icon = ''
   image = ''
+  state = ''
   def __init__(self, **kwargs):
     super().__init__(**kwargs)
     #print(dir(self))
@@ -130,11 +131,10 @@ class Button(Div):
             process(self.command, False)
         self.on('click', click)
 
-      if self.image:
+      tmp = svg_element(self.image)
+      if self.image and svg_element(self.image) is not None:
         self.text = ''
-        tmp = svg_element(self.image)
-        if tmp is not None:
-          self.add(tmp)
+        self.add(tmp)
 
       elif self.icon:
         self.inner_html = f"<i class='fa-2x {self.icon}'><i>"
@@ -149,7 +149,12 @@ class ButtonSound(Div):
   increase_icon = ''
   increase_image = ''
   mute_icon = ''
+  mute_icon_alt = ''
   mute_image = ''
+  mute_image_alt = ''
+  mute_image_element = None
+  mute_image_alt_element = None
+  bmute = None
 
   def __init__(self, **kwargs):
     super().__init__(**kwargs)
@@ -161,8 +166,7 @@ class ButtonSound(Div):
       if tmp is not None:
         Button(click=self.decrease, a=self.div).add(tmp)
     elif self.decrease_icon:
-      Button(inner_html=f"<i class='fa-2x {self.decrease_icon}'><i>",
-             click=self.decrease, a=self.div)
+      Button(icon = self.decrease_icon, click=self.decrease, a=self.div)
     else:
       Button(inner_html='- 5%', click=self.decrease, a=self.div)
 
@@ -171,20 +175,26 @@ class ButtonSound(Div):
       if tmp is not None:
         Button(click=self.increase, a=self.div).add(tmp)
     elif self.increase_icon:
-      Button(inner_html=f"<i class='fa-2x {self.increase_icon}'><i>",
+      Button(icon=self.increase_icon,
              click=self.increase, a=self.div)
     else:
       Button(inner_html='+ 5%', click=self.increase, a=self.div)
 
-    if self.mute_image:
-      tmp = svg_element(self.mute_image)
-      if tmp is not None:
-        Button(click=self.mute, a=self.div).add(tmp)
-    elif self.mute_icon:
-      Button(inner_html=f"<i class='fa-2x {self.mute_icon}'><i>",
-             click=self.mute, a=self.div)
+    self.mute_image_element = svg_element(self.mute_image)
+    self.mute_image_alt_element = svg_element(self.mute_image_alt)
+    if self.mute_image and self.mute_image_element is not None:
+      self.bmute = Button(click=self.mute, a=self.div).add(self.mute_image_element)
     else:
-      Button(inner_html='toggle mute', click=self.mute, a=self.div)
+      self.bmute = Button(text='mute',
+                          icon=self.mute_icon,
+                          icon_alt=self.mute_icon_alt,
+                          click=self.mute, a=self.div)
+    self.bmute.state = f'{volume(self.name)}'
+
+    if self.bmute.state == 'muted':
+      self.bmute.text = 'unmute'
+      if self.mute_icon:
+        self.bmute.inner_html = f"<i class='fa-2x {self.bmute.icon_alt}'><i>"
 
     self.add(self.div)
     self.volume = Div(text=f"{self.description}: {volume(self.name)}",
@@ -198,6 +208,22 @@ class ButtonSound(Div):
 
   async def mute(self, msg):
     self.volume.text = f'{self.description}: {volume_mute(self.name)}'
+    self.bmute.state = f'{volume(self.name)}'
+    if self.bmute.state == 'muted':
+      if self.mute_image_alt:
+        self.bmute.components[0] = self.mute_image_alt_element
+      elif self.mute_icon_alt:
+        self.bmute.inner_html = f"<i class='fa-2x {self.bmute.icon_alt}'><i>"
+      else:
+        self.bmute.text = 'unmute'
+    else:
+      if self.mute_image:
+        self.bmute.components[0] = self.mute_image_element
+      elif self.mute_icon:
+        if self.mute_icon:
+          self.bmute.inner_html = f"<i class='fa-2x {self.bmute.icon}'><i>"
+      else:
+        self.bmute.text = 'mute'
 
 async def reload(self, msg):
   await msg.page.reload()
@@ -243,7 +269,9 @@ def application(request):
               'increase-icon': config.get('default', 'volume-increase-icon', fallback=''),
               'increase-image': config.get('default', 'volume-increase-image', fallback=''),
               'mute-icon': config.get('default', 'volume-mute-icon', fallback=''),
-              'mute-image': config.get('default', 'volume-mute-image', fallback='')}]
+              'mute-icon-alt': config.get('default', 'volume-mute-icon-alt', fallback=''),
+              'mute-image': config.get('default', 'volume-mute-image', fallback=''),
+              'mute-image-alt': config.get('default', 'volume-mute-image-alt', fallback='')}]
       try:
         volume_dict[id] += tmp
       except KeyError:
@@ -275,6 +303,7 @@ def application(request):
                   decrease_icon=j['decrease-icon'], decrease_image=j['decrease-image'],
                   increase_icon=j['increase-icon'], increase_image=j['increase-image'],
                   mute_icon=j['mute-icon'], mute_image=j['mute-image'],
+                  mute_icon_alt=j['mute-icon-alt'], mute_image_alt=j['mute-image-alt'],
                   a=eval(var))
   for i in button_dict:
     var = var_prefix+i
