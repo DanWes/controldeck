@@ -20,20 +20,20 @@ def process(args, output=True):
     print(f"{e} failed!")
 
 def volume(name):
-  result = process(f'pamixer --get-volume --sink "{name}"')
+  result = process(f'pamixer --get-volume-human --sink "{name}"')
   if search("The sink doesn't exit", result):
     result = "--"
   elif search("pamixer: command not found", result) is not None:
     n = process(r"pactl list sinks short | awk '{print $2}'").split()
     v = process(r"pactl list sinks | grep '^[[:space:]]Volume:' | sed -e 's,.* \([0-9][0-9]*\)%.*,\1,'").split()
     if name in n:
-      result = v[n.index(name)]
+      result = v[n.index(name)] + '%'
     else:
       result = '--'
   return result
 
 def volume_decrease(name):
-  result = process(f'pamixer --get-volume --sink "{name}" --decrease 5')
+  result = process(f'pamixer --get-volume-human --sink "{name}" --decrease 5')
   if search("pamixer: command not found", result) is not None:
     process(f'pactl set-sink-volume "{name}" -5%')
     #process(f'pactl set-sink-volume "{name}" -5db')
@@ -41,10 +41,17 @@ def volume_decrease(name):
   return result
 
 def volume_increase(name):
-  result = process(f'pamixer --get-volume --sink "{name}" --increase 5')
+  result = process(f'pamixer --get-volume-human --sink "{name}" --increase 5')
   if search("pamixer: command not found", result) is not None:
     process(f'pactl set-sink-volume "{name}" +5%')
     #process(f'pactl set-sink-volume "{name}" +5db')
+    result = volume(name)
+  return result
+
+def volume_mute(name):
+  result = process(f'pamixer --get-volume-human --sink "{name}" --toggle-mute')
+  if search("pamixer: command not found", result) is not None:
+    process(f'pactl set-sink-mute "{name}" toggle')
     result = volume(name)
   return result
 
@@ -64,29 +71,67 @@ def config_load():
   return config
 
 class Button(Div):
+  btype = None
   command = None
-  empty = None
+  color_bg = ''
+  color_fg = ''
+  icon = ''
+  icon_image = ''
   def __init__(self, **kwargs):
     super().__init__(**kwargs)
-    if self.empty:
+    #print(dir(self))
+    if self.btype == 'empty':
       self.classes = "w-20 h-20 m-2 p-1 flex select-none"
+      self.text = ''
+
     else:
       self.classes = "bg-gray-800 hover:bg-gray-700 text-gray-500 w-20 h-20 m-2 p-1 rounded-lg font-bold flex items-center text-center justify-center select-none"
-    if self.command is not None:
-      def click(self, msg):
-        print(self.command)
-        # string works only with shell
-        if isinstance(self.command, (list)):
-          # e.g.: [['pkill', 'ArdourGUI'], ['systemctl', '--user', 'restart', 'pipewire', 'pipewire-pulse'], ['ardour6', '-n', 'productive-pipewire']]
-          if isinstance(self.command[0], (list)):
-            [process(i, False) for i in self.command]
+
+      self.style = f"background-color:{self.color_bg};" if ishexcolor(self.color_bg) else ''
+      self.style += f"color:{self.color_fg};" if ishexcolor(self.color_fg) else ''
+
+      if self.command is not None:
+        def click(self, msg):
+          print(self.command)
+          # string works only with shell
+          if isinstance(self.command, (list)):
+            # e.g.: [['pkill', 'ArdourGUI'], ['systemctl', '--user', 'restart', 'pipewire', 'pipewire-pulse'], ['ardour6', '-n', 'productive-pipewire']]
+            if isinstance(self.command[0], (list)):
+              [process(i, False) for i in self.command]
+            else:
+              # e.g.: ['pkill', 'ArdourGUI']
+              process(self.command, False)
           else:
-            # e.g.: ['pkill', 'ArdourGUI']
+            # e.g.: 'pkill ArdourGUI'
             process(self.command, False)
-        else:
-          # e.g.: 'pkill ArdourGUI'
-          process(self.command, False)
-      self.on('click', click)
+        self.on('click', click)
+
+      if self.icon_image:
+        self.text = ''
+        svg = ''
+        if path.isfile(path.expanduser(self.icon_image)):
+          try:
+            with open(path.expanduser(self.icon_image)) as f:
+              svg = f.read()
+          except Exception as e:
+            print(f"{e}")
+        try:  # svg with custom tags, as inkscape is using, cannot be interpreted
+          _svg = parse_html(svg)
+          #print(dir(tmp_svg)) # add_attribute
+          #print(tmp2.attributes)
+          # set width and height to viewBox to update width and height for scaling
+          w = _svg.width if hasattr(_svg, 'width') else "64"
+          h = _svg.height if hasattr(_svg, 'height') else "64"
+          vb = _svg.viewBox if hasattr(_svg, 'viewBox') else '0 0 ' + w + ' ' + h
+          _svg.viewBox = vb
+          _svg.width = 64
+          _svg.height = 64
+          self.add(_svg)
+        except Exception as e:
+          print(f"[Error SVG]: {e}")
+
+      elif self.icon:
+        self.inner_html = f"<i class='fa-2x {self.icon}'><i>"
 
 class ButtonSound(Div):
   div = None
@@ -99,16 +144,27 @@ class ButtonSound(Div):
     super().__init__(**kwargs)
     self.classes = "grid-rows-2"
     self.div = Div(classes="flex")
-    Button(inner_html=f'{self.description}<br> - 5%', style=self.button_style, click=self.decrease, a=self.div)
-    Button(inner_html=f'{self.description}<br> + 5%', style=self.button_style, click=self.increase, a=self.div)
+    #Button(inner_html=f'{self.description}<br> - 5%', click=self.decrease, a=self.div)
+    #Button(inner_html=f'{self.description}<br> + 5%', click=self.increase, a=self.div)
+    #Button(inner_html=f'{self.description}<br> (un)mute', click=self.mute, a=self.div)
+    Button(inner_html=f'- 5%', click=self.decrease, a=self.div)
+    Button(inner_html=f'+ 5%', click=self.increase, a=self.div)
+    Button(inner_html=f'toggle mute', click=self.mute, a=self.div)
     self.add(self.div)
-    self.volume = Div(text=f"Volume: {volume(self.name)}%", classes="text-gray-600 text-center -mt-2", a=self)
+    #self.volume = Div(text=f"Volume: {volume(self.name)}", classes="text-gray-600 text-center -mt-2", a=self)
+    self.volume = Div(text=f"{self.description}: {volume(self.name)}", classes="text-gray-600 text-center -mt-2", a=self)
 
   async def decrease(self, msg):
-    self.volume.text = f'Volume: {volume_decrease(self.name)}%'
+    #self.volume.text = f'Volume: {volume_decrease(self.name)}'
+    self.volume.text = f'{self.description}: {volume_decrease(self.name)}'
 
   async def increase(self, msg):
-    self.volume.text = f'Volume: {volume_increase(self.name)}%'
+    #self.volume.text = f'Volume: {volume_increase(self.name)}'
+    self.volume.text = f'{self.description}: {volume_increase(self.name)}'
+
+  async def mute(self, msg):
+    #self.volume.text = f'Volume: {volume_mute(self.name)}'
+    self.volume.text = f'{self.description}: {volume_mute(self.name)}'
 
 async def reload(self, msg):
   await msg.page.reload()
@@ -153,30 +209,23 @@ def application(request):
       tmp = [{'description': i[iname.end(0)+1:],
               'color-bg': config.get(i, 'color-bg', fallback=''),
               'color-fg': config.get(i, 'color-fg', fallback=''),
-              'name': config.get(i, 'name', fallback=None)}]
+              'name': config.get(i, 'name', fallback=None),
+              'decrease-icon': config.get('default', 'volume-decrease-icon', fallback=''),
+              'decrease-icon-image': config.get('default', 'volume-decrease-icon-image', fallback='')}]
       try:
         volume_dict[id] += tmp
       except KeyError:
         volume_dict[id] = tmp
-    # button
-    iname = search("^([0-9]*.?)button", i, flags=IGNORECASE)
+    # button or empty
+    iname = search("^([0-9]*.?)(button|empty)", i, flags=IGNORECASE)
     if iname is not None:
       id = iname.group(1)[:-1]  # remove dot
-      tmp = [{'type': 'normal', 'text': i[iname.end(0)+1:],
+      tmp = [{'type': iname.group(2), 'text': i[iname.end(0)+1:],
               'color-bg': config.get(i, 'color-bg', fallback=''),
               'color-fg': config.get(i, 'color-fg', fallback=''),
               'command': config.get(i, 'command', fallback=None),
               'icon': config.get(i, 'icon', fallback=''),
               'icon-image': config.get(i, 'icon-image', fallback='')}]
-      try:
-        button_dict[id] += tmp
-      except KeyError:
-        button_dict[id] = tmp
-    # empty
-    iname = search("^([0-9]*.?)empty", i, flags=IGNORECASE)
-    if iname is not None:
-      id = iname.group(1)[:-1]  # remove dot
-      tmp = [{'type': 'empty', 'text': i[iname.end(0)+1:]}]
       try:
         button_dict[id] += tmp
       except KeyError:
@@ -194,44 +243,11 @@ def application(request):
   for i in button_dict:
     var = var_prefix+i
     for j in button_dict[i]:
-      if j['type'] == 'normal':
-        color_bg = f"background-color:{j['color-bg']};" if ishexcolor(j['color-bg']) else ''
-        color_fg = f"color:{j['color-fg']};" if ishexcolor(j['color-fg']) else ''
       if var not in vars():
         vars()[var] = Div(classes="flex flex-wrap", a=wp)
-      if j['type'] == 'empty':
-        Button(empty=True, a=eval(var))
-      elif 'icon-image' in j and j['icon-image'] != '':
-        svg = ''
-        if path.isfile(path.expanduser(j['icon-image'])):
-          try:
-            with open(path.expanduser(j['icon-image'])) as f:
-              svg = f.read()
-          except Exception as e:
-            print(f"{e}")
-        try:  # svg with custom tags, as inkscape is using, cannot be interpreted
-          tmp = Button(style = color_bg, command=j['command'], a=eval(var))
-          tmp_svg = parse_html(svg)
-          #print(dir(tmp_svg)) # add_attribute
-          #print(tmp2.attributes)
-          # set width and height to viewBox to update width and height for scaling
-          w = tmp_svg.width if hasattr(tmp_svg, 'width') else "64"
-          h = tmp_svg.height if hasattr(tmp_svg, 'height') else "64"
-          vb = tmp_svg.viewBox if hasattr(tmp_svg, 'viewBox') else '0 0 ' + w + ' ' + h
-          tmp_svg.viewBox = vb
-          tmp_svg.width = 64
-          tmp_svg.height = 64
-          tmp += tmp_svg
-        except Exception as e:
-          print(f"[Error SVG]: {e}")
-      elif 'icon' in j and j['icon'] != '':
-        Button(inner_html=f"<i class='fa-2x {j['icon']}'><i>",
-               style = color_bg + color_fg,
-               command=j['command'], a=eval(var))
-      else:
-        Button(text=j['text'],
-               style = color_bg + color_fg,
-               command=j['command'], a=eval(var))
+      Button(text=j['text'], btype=j['type'], command=j['command'],
+             color_bg=j['color-bg'], color_fg=j['color-fg'],
+             icon=j['icon'], icon_image=j['icon-image'], a=eval(var))
 
   if not wp.components:
     # config not found or empty, therefore insert an empty div to not get an error
