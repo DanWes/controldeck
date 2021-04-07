@@ -19,6 +19,20 @@ def process(args, output=True):
   except Exception as e:
     print(f"{e} failed!")
 
+def process_shell(command):
+  print(command)
+  # string works only with shell
+  if isinstance(command, (list)):
+    # e.g.: [['pkill', 'ArdourGUI'], ['systemctl', '--user', 'restart', 'pipewire', 'pipewire-pulse'], ['ardour6', '-n', 'productive-pipewire']]
+    if isinstance(command[0], (list)):
+      [process(i, False) for i in command]
+    else:
+      # e.g.: ['pkill', 'ArdourGUI']
+      process(command, False)
+  else:
+    # e.g.: 'pkill ArdourGUI'
+    process(command, False)
+
 def volume(name):
   result = process(f'pamixer --get-volume-human --sink "{name}"')
   if search("The sink doesn't exit", result):
@@ -95,16 +109,28 @@ def svg_element(image):
   return _svg
 
 class Button(Div):
+  text = ''
+  text_normal = ''
+  text_alt = ''
   btype = None
   command = None
+  command_alt = None
   color_bg = ''
   color_fg = ''
   icon = ''
+  icon_alt = ''
   image = ''
+  image_alt = ''
+  image_element = None
+  image_alt_element = None
   state = ''
+  state_pattern = ''
+  state_pattern_alt = ''
+  state_command = ''
+  state_command_alt = ''
   def __init__(self, **kwargs):
     super().__init__(**kwargs)
-    #print(dir(self))
+    self.text_normal = str(self.text)
     if self.btype == 'empty':
       self.classes = "w-20 h-20 m-2 p-1 flex select-none"
       self.text = ''
@@ -117,27 +143,46 @@ class Button(Div):
 
       if self.command is not None:
         def click(self, msg):
-          print(self.command)
-          # string works only with shell
-          if isinstance(self.command, (list)):
-            # e.g.: [['pkill', 'ArdourGUI'], ['systemctl', '--user', 'restart', 'pipewire', 'pipewire-pulse'], ['ardour6', '-n', 'productive-pipewire']]
-            if isinstance(self.command[0], (list)):
-              [process(i, False) for i in self.command]
-            else:
-              # e.g.: ['pkill', 'ArdourGUI']
-              process(self.command, False)
+          self.state = process(self.state_command)
+          if search(self.state_pattern, self.state):
+            process_shell(self.command_alt)
+            if self.image_alt:
+              self.components[0] = self.image_alt_element
+            elif self.icon_alt:
+              self.inner_html = f"<i class='fa-2x {self.icon_alt}'><i>"
+            elif self.text_alt:
+              self.text = self.text_alt
           else:
-            # e.g.: 'pkill ArdourGUI'
-            process(self.command, False)
+            process_shell(self.command)
+            if self.image:
+              self.components[0] = self.image_element
+            elif self.icon:
+              self.inner_html = f"<i class='fa-2x {self.icon}'><i>"
+            else:
+              self.text = self.text_normal
         self.on('click', click)
 
-      tmp = svg_element(self.image)
-      if self.image and svg_element(self.image) is not None:
+      self.state = process(self.state_command)
+      self.image_element = svg_element(self.image)
+      self.image_alt_element = svg_element(self.image_alt)
+      if self.image and self.image_element is not None:
         self.text = ''
-        self.add(tmp)
+        if self.image_alt and not search(self.state_pattern, self.state):
+          self.add(self.image_alt_element)
+        else:
+          self.add(self.image_element)
 
       elif self.icon:
-        self.inner_html = f"<i class='fa-2x {self.icon}'><i>"
+        if self.icon_alt and not search(self.state_pattern, self.state):
+          self.inner_html = f"<i class='fa-2x {self.icon_alt}'><i>"
+        else:
+          self.inner_html = f"<i class='fa-2x {self.icon}'><i>"
+
+      else:
+        if self.text_alt and not search(self.state_pattern, self.state):
+          self.text = self.text_alt
+        else:
+          self.text = self.text_normal
 
 class ButtonSound(Div):
   div = None
@@ -152,8 +197,6 @@ class ButtonSound(Div):
   mute_icon_alt = ''
   mute_image = ''
   mute_image_alt = ''
-  mute_image_element = None
-  mute_image_alt_element = None
   bmute = None
 
   def __init__(self, **kwargs):
@@ -180,10 +223,11 @@ class ButtonSound(Div):
     else:
       Button(inner_html='+ 5%', click=self.increase, a=self.div)
 
-    self.mute_image_element = svg_element(self.mute_image)
-    self.mute_image_alt_element = svg_element(self.mute_image_alt)
-    if self.mute_image and self.mute_image_element is not None:
-      self.bmute = Button(click=self.mute, a=self.div).add(self.mute_image_element)
+    if self.mute_image and self.mute_image is not None:
+      self.bmute = Button(click=self.mute,
+                          image=self.mute_image,
+                          image_alt=self.mute_image_alt,
+                          a=self.div)
     else:
       self.bmute = Button(text='mute',
                           icon=self.mute_icon,
@@ -192,9 +236,12 @@ class ButtonSound(Div):
     self.bmute.state = f'{volume(self.name)}'
 
     if self.bmute.state == 'muted':
-      self.bmute.text = 'unmute'
-      if self.mute_icon:
+      if self.bmute.image_alt_element:
+        self.bmute.components[0] = self.bmute.image_alt_element
+      elif self.mute_icon:
         self.bmute.inner_html = f"<i class='fa-2x {self.bmute.icon_alt}'><i>"
+      else:
+        self.bmute.text = 'unmute'
 
     self.add(self.div)
     self.volume = Div(text=f"{self.description}: {volume(self.name)}",
@@ -210,15 +257,15 @@ class ButtonSound(Div):
     self.volume.text = f'{self.description}: {volume_mute(self.name)}'
     self.bmute.state = f'{volume(self.name)}'
     if self.bmute.state == 'muted':
-      if self.mute_image_alt:
-        self.bmute.components[0] = self.mute_image_alt_element
+      if self.bmute.image_alt_element:
+        self.bmute.components[0] = self.bmute.image_alt_element
       elif self.mute_icon_alt:
         self.bmute.inner_html = f"<i class='fa-2x {self.bmute.icon_alt}'><i>"
       else:
         self.bmute.text = 'unmute'
     else:
-      if self.mute_image:
-        self.bmute.components[0] = self.mute_image_element
+      if self.bmute.image_element:
+        self.bmute.components[0] = self.bmute.image_element
       elif self.mute_icon:
         if self.mute_icon:
           self.bmute.inner_html = f"<i class='fa-2x {self.bmute.icon}'><i>"
@@ -281,11 +328,19 @@ def application(request):
     if iname is not None:
       id = iname.group(1)[:-1]  # remove dot
       tmp = [{'type': iname.group(2), 'text': i[iname.end(0)+1:],
+              'text-alt': config.get(i, 'text-alt', fallback=''),
               'color-bg': config.get(i, 'color-bg', fallback=''),
               'color-fg': config.get(i, 'color-fg', fallback=''),
               'command': config.get(i, 'command', fallback=None),
+              'command-alt': config.get(i, 'command-alt', fallback=None),
+              'state': config.get(i, 'state', fallback=''),
+              'state-alt': config.get(i, 'state-alt', fallback=''),
+              'state-command': config.get(i, 'state-command', fallback=''),
+              'state-command-alt': config.get(i, 'state-command-alt', fallback=''),
               'icon': config.get(i, 'icon', fallback=''),
-              'image': config.get(i, 'image', fallback='')}]
+              'icon-alt': config.get(i, 'icon-alt', fallback=''),
+              'image': config.get(i, 'image', fallback=''),
+              'image-alt': config.get(i, 'image-alt', fallback='')}]
       try:
         button_dict[id] += tmp
       except KeyError:
@@ -310,9 +365,14 @@ def application(request):
     for j in button_dict[i]:
       if var not in vars():
         vars()[var] = Div(classes="flex flex-wrap", a=wp)
-      Button(text=j['text'], btype=j['type'], command=j['command'],
+      Button(text=j['text'], text_alt=j['text-alt'], btype=j['type'],
+             command=j['command'], command_alt=j['command-alt'],
              color_bg=j['color-bg'], color_fg=j['color-fg'],
-             icon=j['icon'], image=j['image'], a=eval(var))
+             state_pattern=j['state'], state_pattern_alt=j['state-alt'],
+             state_command=j['state-command'],
+             state_command_alt=j['state-command-alt'],
+             icon=j['icon'], icon_alt=j['icon-alt'],
+             image=j['image'], image_alt=j['image-alt'], a=eval(var))
 
   if not wp.components:
     # config not found or empty, therefore insert an empty div to not get an error
