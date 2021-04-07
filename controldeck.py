@@ -70,13 +70,37 @@ def config_load():
   #print(config.sections())
   return config
 
+def svg_element(image):
+  svg = ''
+  if path.isfile(path.expanduser(image)):
+    try:
+      with open(path.expanduser(image)) as f:
+        svg = f.read()
+    except Exception as e:
+      print(f"{e}")
+  try:  # svg with custom tags, as inkscape is using, cannot be interpreted
+    _svg = parse_html(svg)
+    #print(dir(tmp_svg)) # add_attribute
+    #print(tmp2.attributes)
+    # set width and height to viewBox to update width and height for scaling
+    w = _svg.width if hasattr(_svg, 'width') else "64"
+    h = _svg.height if hasattr(_svg, 'height') else "64"
+    vb = _svg.viewBox if hasattr(_svg, 'viewBox') else '0 0 ' + w + ' ' + h
+    _svg.viewBox = vb
+    _svg.width = 64
+    _svg.height = 64
+  except Exception as e:
+    print(f"[Error SVG]: {e}")
+    _svg = None
+  return _svg
+
 class Button(Div):
   btype = None
   command = None
   color_bg = ''
   color_fg = ''
   icon = ''
-  icon_image = ''
+  image = ''
   def __init__(self, **kwargs):
     super().__init__(**kwargs)
     #print(dir(self))
@@ -106,29 +130,11 @@ class Button(Div):
             process(self.command, False)
         self.on('click', click)
 
-      if self.icon_image:
+      if self.image:
         self.text = ''
-        svg = ''
-        if path.isfile(path.expanduser(self.icon_image)):
-          try:
-            with open(path.expanduser(self.icon_image)) as f:
-              svg = f.read()
-          except Exception as e:
-            print(f"{e}")
-        try:  # svg with custom tags, as inkscape is using, cannot be interpreted
-          _svg = parse_html(svg)
-          #print(dir(tmp_svg)) # add_attribute
-          #print(tmp2.attributes)
-          # set width and height to viewBox to update width and height for scaling
-          w = _svg.width if hasattr(_svg, 'width') else "64"
-          h = _svg.height if hasattr(_svg, 'height') else "64"
-          vb = _svg.viewBox if hasattr(_svg, 'viewBox') else '0 0 ' + w + ' ' + h
-          _svg.viewBox = vb
-          _svg.width = 64
-          _svg.height = 64
-          self.add(_svg)
-        except Exception as e:
-          print(f"[Error SVG]: {e}")
+        tmp = svg_element(self.image)
+        if tmp is not None:
+          self.add(tmp)
 
       elif self.icon:
         self.inner_html = f"<i class='fa-2x {self.icon}'><i>"
@@ -138,17 +144,51 @@ class ButtonSound(Div):
   name = None
   description = None
   volume = None
-  button_style = None
+  decrease_icon = ''
+  decrease_image = ''
+  increase_icon = ''
+  increase_image = ''
+  mute_icon = ''
+  mute_image = ''
 
   def __init__(self, **kwargs):
     super().__init__(**kwargs)
     self.classes = "grid-rows-2"
     self.div = Div(classes="flex")
-    Button(inner_html='- 5%', click=self.decrease, a=self.div)
-    Button(inner_html='+ 5%', click=self.increase, a=self.div)
-    Button(inner_html='toggle mute', click=self.mute, a=self.div)
+
+    if self.decrease_image:
+      tmp = svg_element(self.decrease_image)
+      if tmp is not None:
+        Button(click=self.decrease, a=self.div).add(tmp)
+    elif self.decrease_icon:
+      Button(inner_html=f"<i class='fa-2x {self.decrease_icon}'><i>",
+             click=self.decrease, a=self.div)
+    else:
+      Button(inner_html='- 5%', click=self.decrease, a=self.div)
+
+    if self.increase_image:
+      tmp = svg_element(self.increase_image)
+      if tmp is not None:
+        Button(click=self.increase, a=self.div).add(tmp)
+    elif self.increase_icon:
+      Button(inner_html=f"<i class='fa-2x {self.increase_icon}'><i>",
+             click=self.increase, a=self.div)
+    else:
+      Button(inner_html='+ 5%', click=self.increase, a=self.div)
+
+    if self.mute_image:
+      tmp = svg_element(self.mute_image)
+      if tmp is not None:
+        Button(click=self.mute, a=self.div).add(tmp)
+    elif self.mute_icon:
+      Button(inner_html=f"<i class='fa-2x {self.mute_icon}'><i>",
+             click=self.mute, a=self.div)
+    else:
+      Button(inner_html='toggle mute', click=self.mute, a=self.div)
+
     self.add(self.div)
-    self.volume = Div(text=f"{self.description}: {volume(self.name)}", classes="text-gray-600 text-center -mt-2", a=self)
+    self.volume = Div(text=f"{self.description}: {volume(self.name)}",
+                      classes="text-gray-600 text-center -mt-2", a=self)
 
   async def decrease(self, msg):
     self.volume.text = f'{self.description}: {volume_decrease(self.name)}'
@@ -199,7 +239,11 @@ def application(request):
               'color-fg': config.get(i, 'color-fg', fallback=''),
               'name': config.get(i, 'name', fallback=None),
               'decrease-icon': config.get('default', 'volume-decrease-icon', fallback=''),
-              'decrease-icon-image': config.get('default', 'volume-decrease-icon-image', fallback='')}]
+              'decrease-image': config.get('default', 'volume-decrease-image', fallback=''),
+              'increase-icon': config.get('default', 'volume-increase-icon', fallback=''),
+              'increase-image': config.get('default', 'volume-increase-image', fallback=''),
+              'mute-icon': config.get('default', 'volume-mute-icon', fallback=''),
+              'mute-image': config.get('default', 'volume-mute-image', fallback='')}]
       try:
         volume_dict[id] += tmp
       except KeyError:
@@ -213,7 +257,7 @@ def application(request):
               'color-fg': config.get(i, 'color-fg', fallback=''),
               'command': config.get(i, 'command', fallback=None),
               'icon': config.get(i, 'icon', fallback=''),
-              'icon-image': config.get(i, 'icon-image', fallback='')}]
+              'image': config.get(i, 'image', fallback='')}]
       try:
         button_dict[id] += tmp
       except KeyError:
@@ -227,7 +271,11 @@ def application(request):
       color_bg = f"background-color:{j['color-bg']};" if ishexcolor(j['color-bg']) else ''
       color_fg = f"color:{j['color-fg']};" if ishexcolor(j['color-fg']) else ''
       ButtonSound(name=j['name'], description=j['description'],
-                  button_style = color_bg + color_fg, a=eval(var))
+                  color_bg=j['color-bg'], color_fg=j['color-fg'],
+                  decrease_icon=j['decrease-icon'], decrease_image=j['decrease-image'],
+                  increase_icon=j['increase-icon'], increase_image=j['increase-image'],
+                  mute_icon=j['mute-icon'], mute_image=j['mute-image'],
+                  a=eval(var))
   for i in button_dict:
     var = var_prefix+i
     for j in button_dict[i]:
@@ -235,7 +283,7 @@ def application(request):
         vars()[var] = Div(classes="flex flex-wrap", a=wp)
       Button(text=j['text'], btype=j['type'], command=j['command'],
              color_bg=j['color-bg'], color_fg=j['color-fg'],
-             icon=j['icon'], icon_image=j['icon-image'], a=eval(var))
+             icon=j['icon'], image=j['image'], a=eval(var))
 
   if not wp.components:
     # config not found or empty, therefore insert an empty div to not get an error
