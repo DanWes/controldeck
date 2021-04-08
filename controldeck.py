@@ -34,7 +34,7 @@ def process_shell(command):
     process(command, False)
 
 def volume(name):
-  result = process(f'pamixer --get-volume-human --sink "{name}"')
+  result = process(f'pamixer --sink "{name}" --get-volume-human')
   if search("The sink doesn't exit", result):
     result = "--"
   elif search("pamixer: command not found", result) is not None:
@@ -47,7 +47,7 @@ def volume(name):
   return result
 
 def volume_decrease(name):
-  result = process(f'pamixer --get-volume-human --sink "{name}" --decrease 5')
+  result = process(f'pamixer --sink "{name}" --get-volume-human --decrease 5')
   if search("pamixer: command not found", result) is not None:
     process(f'pactl set-sink-volume "{name}" -5%')
     #process(f'pactl set-sink-volume "{name}" -5db')
@@ -55,7 +55,7 @@ def volume_decrease(name):
   return result
 
 def volume_increase(name):
-  result = process(f'pamixer --get-volume-human --sink "{name}" --increase 5')
+  result = process(f'pamixer --sink "{name}" --get-volume-human --increase 5')
   if search("pamixer: command not found", result) is not None:
     process(f'pactl set-sink-volume "{name}" +5%')
     #process(f'pactl set-sink-volume "{name}" +5db')
@@ -63,9 +63,45 @@ def volume_increase(name):
   return result
 
 def volume_mute(name):
-  result = process(f'pamixer --get-volume-human --sink "{name}" --toggle-mute')
+  result = process(f'pamixer --sink "{name}" --get-volume-human --toggle-mute')
   if search("pamixer: command not found", result) is not None:
     process(f'pactl set-sink-mute "{name}" toggle')
+    result = volume(name)
+  return result
+
+def source_volume(name):
+  result = process(f'pamixer --source "{name}" --get-volume-human')
+  if search("The source doesn't exit", result):
+    result = "--"
+  elif search("pamixer: command not found", result) is not None:
+    n = process(r"pactl list sources short | awk '{print $2}'").split()
+    v = process(r"pactl list sources | grep '^[[:space:]]Volume:' | sed -e 's,.* \([0-9][0-9]*\)%.*,\1,'").split()
+    if name in n:
+      result = v[n.index(name)] + '%'
+    else:
+      result = '--'
+  return result
+
+def source_volume_decrease(name):
+  result = process(f'pamixer --source "{name}" --get-volume-human --decrease 5')
+  if search("pamixer: command not found", result) is not None:
+    process(f'pactl set-source-volume "{name}" -5%')
+    #process(f'pactl set-source-volume "{name}" -5db')
+    result = volume(name)
+  return result
+
+def source_volume_increase(name):
+  result = process(f'pamixer --source "{name}" --get-volume-human --increase 5')
+  if search("pamixer: command not found", result) is not None:
+    process(f'pactl set-source-volume "{name}" +5%')
+    #process(f'pactl set-source-volume "{name}" +5db')
+    result = volume(name)
+  return result
+
+def source_volume_mute(name):
+  result = process(f'pamixer --source "{name}" --get-volume-human --toggle-mute')
+  if search("pamixer: command not found", result) is not None:
+    process(f'pactl set-source-mute "{name}" toggle')
     result = volume(name)
   return result
 
@@ -189,6 +225,7 @@ class Button(Div):
 
 class ButtonSound(Div):
   div = None
+  btype = None
   name = None
   description = None
   volume = None
@@ -236,7 +273,10 @@ class ButtonSound(Div):
                           icon=self.mute_icon,
                           icon_alt=self.mute_icon_alt,
                           click=self.mute, a=self.div)
-    self.bmute.state = f'{volume(self.name)}'
+    if self.btype == 'mic':
+      self.bmute.state = f'{source_volume(self.name)}'
+    else:
+      self.bmute.state = f'{volume(self.name)}'
 
     if self.bmute.state == 'muted':
       if self.bmute.image_alt_element:
@@ -247,18 +287,32 @@ class ButtonSound(Div):
         self.bmute.text = 'unmute'
 
     self.add(self.div)
-    self.volume = Div(text=f"{self.description}: {volume(self.name)}",
-                      classes="text-gray-600 text-center -mt-2", a=self)
+    if self.btype == 'mic':
+      self.volume = Div(text=f"{self.description}: {source_volume(self.name)}",
+                        classes="text-gray-600 text-center -mt-2", a=self)
+    else:
+      self.volume = Div(text=f"{self.description}: {volume(self.name)}",
+                        classes="text-gray-600 text-center -mt-2", a=self)
 
   async def decrease(self, msg):
-    self.volume.text = f'{self.description}: {volume_decrease(self.name)}'
+    if self.btype == 'mic':
+      self.volume.text = f'{self.description}: {source_volume_decrease(self.name)}'
+    else:
+      self.volume.text = f'{self.description}: {volume_decrease(self.name)}'
 
   async def increase(self, msg):
-    self.volume.text = f'{self.description}: {volume_increase(self.name)}'
+    if self.btype == 'mic':
+      self.volume.text = f'{self.description}: {source_volume_increase(self.name)}'
+    else:
+      self.volume.text = f'{self.description}: {volume_increase(self.name)}'
 
   async def mute(self, msg):
-    self.volume.text = f'{self.description}: {volume_mute(self.name)}'
-    self.bmute.state = f'{volume(self.name)}'
+    if self.btype == 'mic':
+      self.volume.text = f'{self.description}: {source_volume_mute(self.name)}'
+      self.bmute.state = f'{source_volume(self.name)}'
+    else:
+      self.volume.text = f'{self.description}: {volume_mute(self.name)}'
+      self.bmute.state = f'{volume(self.name)}'
     if self.bmute.state == 'muted':
       if self.bmute.image_alt_element:
         self.bmute.components[0] = self.bmute.image_alt_element
@@ -307,21 +361,35 @@ def application(request):
   for i in config.sections():
     iname = None
     # volume buttons
-    iname = search("^([0-9]*.?)volume", i, flags=IGNORECASE)
+    iname = search("^([0-9]*.?)(volume|mic)", i, flags=IGNORECASE)
     if iname is not None:
       id = iname.group(1)[:-1]  # remove dot
-      tmp = [{'description': i[iname.end(0)+1:],
-              'color-bg': config.get(i, 'color-bg', fallback=''),
-              'color-fg': config.get(i, 'color-fg', fallback=''),
-              'name': config.get(i, 'name', fallback=None),
-              'decrease-icon': config.get('default', 'volume-decrease-icon', fallback=''),
-              'decrease-image': config.get('default', 'volume-decrease-image', fallback=''),
-              'increase-icon': config.get('default', 'volume-increase-icon', fallback=''),
-              'increase-image': config.get('default', 'volume-increase-image', fallback=''),
-              'mute-icon': config.get('default', 'volume-mute-icon', fallback=''),
-              'mute-icon-alt': config.get('default', 'volume-mute-icon-alt', fallback=''),
-              'mute-image': config.get('default', 'volume-mute-image', fallback=''),
-              'mute-image-alt': config.get('default', 'volume-mute-image-alt', fallback='')}]
+      if iname.group(2) == 'mic':
+        tmp = [{'type': iname.group(2), 'description': i[iname.end(0)+1:],
+                'color-bg': config.get(i, 'color-bg', fallback=''),
+                'color-fg': config.get(i, 'color-fg', fallback=''),
+                'name': config.get(i, 'name', fallback=None),
+                'decrease-icon': config.get('default', 'mic-decrease-icon', fallback=''),
+                'decrease-image': config.get('default', 'mic-decrease-image', fallback=''),
+                'increase-icon': config.get('default', 'mic-increase-icon', fallback=''),
+                'increase-image': config.get('default', 'mic-increase-image', fallback=''),
+                'mute-icon': config.get('default', 'mic-mute-icon', fallback=''),
+                'mute-icon-alt': config.get('default', 'mic-mute-icon-alt', fallback=''),
+                'mute-image': config.get('default', 'mic-mute-image', fallback=''),
+                'mute-image-alt': config.get('default', 'mic-mute-image-alt', fallback='')}]
+      else:
+        tmp = [{'type': iname.group(2), 'description': i[iname.end(0)+1:],
+                'color-bg': config.get(i, 'color-bg', fallback=''),
+                'color-fg': config.get(i, 'color-fg', fallback=''),
+                'name': config.get(i, 'name', fallback=None),
+                'decrease-icon': config.get('default', 'volume-decrease-icon', fallback=''),
+                'decrease-image': config.get('default', 'volume-decrease-image', fallback=''),
+                'increase-icon': config.get('default', 'volume-increase-icon', fallback=''),
+                'increase-image': config.get('default', 'volume-increase-image', fallback=''),
+                'mute-icon': config.get('default', 'volume-mute-icon', fallback=''),
+                'mute-icon-alt': config.get('default', 'volume-mute-icon-alt', fallback=''),
+                'mute-image': config.get('default', 'volume-mute-image', fallback=''),
+                'mute-image-alt': config.get('default', 'volume-mute-image-alt', fallback='')}]
       try:
         volume_dict[id] += tmp
       except KeyError:
@@ -356,7 +424,7 @@ def application(request):
         vars()[var] = Div(classes="flex flex-wrap", a=wp)
       color_bg = f"background-color:{j['color-bg']};" if ishexcolor(j['color-bg']) else ''
       color_fg = f"color:{j['color-fg']};" if ishexcolor(j['color-fg']) else ''
-      ButtonSound(name=j['name'], description=j['description'],
+      ButtonSound(name=j['name'], description=j['description'], btype=j['type'],
                   color_bg=j['color-bg'], color_fg=j['color-fg'],
                   decrease_icon=j['decrease-icon'], decrease_image=j['decrease-image'],
                   increase_icon=j['increase-icon'], increase_image=j['increase-image'],
