@@ -145,7 +145,10 @@ class Button(Div):
         def click(self, msg):
           self.state = process(self.state_command)
           if search(self.state_pattern, self.state):
-            process_shell(self.command_alt)
+            if self.command_alt is None:
+              process_shell(self.command)
+            else:
+              process_shell(self.command_alt)
             if self.image_alt:
               self.components[0] = self.image_alt_element
             elif self.icon_alt:
