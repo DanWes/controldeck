@@ -8,6 +8,7 @@ def main():
     controldeck.process("controldeck &", output=False)
 
   config = controldeck.config_load()
+  url = config.get('gui', 'url', fallback='http://0.0.0.0:8000') + "/?gui"
   try:
     width = int(config.get('gui', 'width', fallback=800))
   except ValueError as e:
@@ -46,7 +47,7 @@ def main():
   on_top = config.get('gui', 'always_on_top', fallback='False').title() == 'True'
 
   create_window("ControlDeck",
-                url="http://0.0.0.0:8000/?gui",
+                url=url,
                 html=None,
                 js_api=None,
                 width=width,
