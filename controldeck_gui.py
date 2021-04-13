@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 import sys
+import argparse
 from webview import create_window, start
 import controldeck
 
-def main():
+def main(conf=''):
   if controldeck.process("ps -ef | grep -i controldeck | grep -v controldeck-gui | grep -v grep") == "":
     controldeck.process("controldeck &", output=False)
 
-  config = controldeck.config_load()
+  config = controldeck.config_load(conf=conf)
   url = config.get('gui', 'url', fallback='http://0.0.0.0:8000') + "/?gui"
   try:
     width = int(config.get('gui', 'width', fallback=800))
@@ -68,5 +69,23 @@ def main():
                 text_select=False)
   start()
 
+def cli():
+  parser = argparse.ArgumentParser(
+    description=__doc__, prefix_chars='-',
+    formatter_class=argparse.RawTextHelpFormatter,
+  )
+  parser.add_argument('-c', '--config', nargs='?', type=str, default='',
+                      help="Specify a path to a custom config file (default: ~/.config/controldeck/controldeck.conf)")
+  parser.add_argument('-v', '--verbose', action="store_true", help="Verbose output")
+  parser.add_argument('-D', '--debug', dest='debug', action='store_true', help=argparse.SUPPRESS)
+  args = parser.parse_args()
+
+  if args.debug:
+    print(args)
+
+  main(conf=args.config)
+
+  return 0
+
 if __name__ == '__main__':
-  sys.exit(main())
+  sys.exit(cli())

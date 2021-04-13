@@ -105,14 +105,17 @@ def source_volume_mute(name):
     result = volume(name)
   return result
 
-def config_load():
+def config_load(conf=''):
   config = ConfigParser(strict=False)
-  config_file = "controldeck.conf"
-  full_config_file_path = path.dirname(path.realpath(__file__)) + sep + config_file
-  if not path.exists(config_file):
-    config_folder = path.join(path.expanduser("~"), '.config', APP_NAME.lower())
-    makedirs(config_folder, exist_ok=True)
-    full_config_file_path = path.join(config_folder, config_file)
+  if conf:
+    full_config_file_path = conf
+  else:
+    config_file = "controldeck.conf"
+    full_config_file_path = path.dirname(path.realpath(__file__)) + sep + config_file
+    if not path.exists(config_file):
+      config_folder = path.join(path.expanduser("~"), '.config', APP_NAME.lower())
+      makedirs(config_folder, exist_ok=True)
+      full_config_file_path = path.join(config_folder, config_file)
   try:
     config.read(full_config_file_path)
   except Exception as e:
