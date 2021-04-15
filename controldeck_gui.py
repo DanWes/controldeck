@@ -2,13 +2,13 @@
 import sys
 import argparse
 from webview import create_window, start
-import controldeck
+from controldeck import config_load, process
 
 def main(conf=''):
-  if controldeck.process("ps -ef | grep -i controldeck | grep -v controldeck-gui | grep -v grep") == "":
-    controldeck.process("controldeck &", output=False)
+  if process("ps -ef | grep -i controldeck | grep -v controldeck-gui | grep -v grep") == "":
+    process("controldeck &", output=False)
 
-  config = controldeck.config_load(conf=conf)
+  config = config_load(conf=conf)
   url = config.get('gui', 'url', fallback='http://0.0.0.0:8000') + "/?gui"
   try:
     width = int(config.get('gui', 'width', fallback=800))
