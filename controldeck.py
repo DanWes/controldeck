@@ -5,6 +5,7 @@ from subprocess import Popen, PIPE, STDOUT
 from configparser import ConfigParser
 from re import search, IGNORECASE
 from justpy import Div, I, WebPage, SetRoute, parse_html, justpy
+from cairosvg import svg2svg
 
 APP_NAME = "ControlDeck"
 
@@ -125,16 +126,27 @@ def config_load(conf=''):
 
 def svg_element(image):
   svg = ''
+  parse = False
   if path.isfile(path.expanduser(image)):
     try:
       with open(path.expanduser(image)) as f:
         svg = f.read()
     except Exception as e:
       print(f"{e}")
+  # 1st try direct parsing
   try:  # svg with custom tags, as inkscape is using, cannot be interpreted
     _svg = parse_html(svg)
-    #print(dir(tmp_svg)) # add_attribute
-    #print(tmp2.attributes)
+    parse = True
+  except Exception as e:
+    # 2nd try svg2svg parsing
+    try:  # svg with custom tags, as inkscape is using, cannot be interpreted
+      svg = svg2svg(bytestring=svg.encode('utf-8')).decode('utf-8')
+      _svg = parse_html(svg)
+      parse = True
+    except Exception as e:
+      print(f"[Error SVG]: {e}")
+      _svg = None
+  if parse:
     # set width and height to viewBox to update width and height for scaling
     w = _svg.width if hasattr(_svg, 'width') else "64"
     h = _svg.height if hasattr(_svg, 'height') else "64"
@@ -142,9 +154,6 @@ def svg_element(image):
     _svg.viewBox = vb
     _svg.width = 64
     _svg.height = 64
-  except Exception as e:
-    print(f"[Error SVG]: {e}")
-    _svg = None
   return _svg
 
 class Button(Div):
