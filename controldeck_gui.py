@@ -1,15 +1,17 @@
 #!/usr/bin/env python
 import sys
+import os
 import argparse
 from webview import create_window, start
 from controldeck import config_load, process
 
-def main(conf=''):
-  if process("ps -ef | grep -i controldeck | grep -v controldeck-gui | grep -v grep") == "":
+def main(args, pid=-1):
+  if args.start and \
+     process("ps -ef | grep -i controldeck | grep -v controldeck-gui | grep -v grep") == "":
     process("controldeck &", output=False)
 
-  config = config_load(conf=conf)
-  url = config.get('gui', 'url', fallback='http://0.0.0.0:8000') + "/?gui"
+  config = config_load(conf=args.config)
+  url = config.get('gui', 'url', fallback='http://0.0.0.0:8000') + "/?gui&pid=" + str(pid)
   try:
     width = int(config.get('gui', 'width', fallback=800))
   except ValueError as e:
@@ -76,14 +78,16 @@ def cli():
   )
   parser.add_argument('-c', '--config', nargs='?', type=str, default='',
                       help="Specify a path to a custom config file (default: ~/.config/controldeck/controldeck.conf)")
+  parser.add_argument('-s', '--start', action="store_true",
+                      help="Start also controldeck program")
   parser.add_argument('-v', '--verbose', action="store_true", help="Verbose output")
-  parser.add_argument('-D', '--debug', dest='debug', action='store_true', help=argparse.SUPPRESS)
+  parser.add_argument('-D', '--debug', action='store_true', help=argparse.SUPPRESS)
   args = parser.parse_args()
 
   if args.debug:
     print(args)
 
-  main(conf=args.config)
+  main(args, pid=os.getpid())
 
   return 0
 

@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=ControlDeck
+Exec=${HOME}/.local/bin/controldeck-gui
+Terminal=false
+Type=Application
+StartupNotify=true
+StartupWMClass=controldeck

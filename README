@@ -1,6 +1,6 @@
 Install
 
-  pip install --user -e .
+  ./setup.sh
 
   Requirements:
   - For volume buttons: libpulse
@@ -14,3 +14,8 @@ Configuration
 
   ~/.config/controldeck/controldeck.conf
   See example in example directory.
+
+  systemctl --user start controldeck.service
+  systemctl --user enable controldeck.service
+
+  journalctl --user-unit=controldeck -e

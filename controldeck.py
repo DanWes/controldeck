@@ -342,16 +342,23 @@ async def reload_all_instances(self, msg):
       await page.reload()
 
 async def kill_gui(self, msg):
-  await process("pkill controldeck-gui")
+  if 'pid' in msg.page.request.query_params:
+    pid = msg.page.request.query_params.get('pid')
+    await process(f"kill {pid}")
+  else:
+    await process("pkill controldeck-gui")
 
 def ishexcolor(code):
   return bool(search(r'^#(?:[0-9a-fA-F]{3}){1,2}$', code))
 
 @SetRoute('/')
 def application(request):
+  
   wp = WebPage(title=APP_NAME, body_classes="bg-gray-900")
   wp.page_type = 'main'
   wp.head_html = '<meta name="viewport" content="width=device-width, initial-scale=1">'
+  # can be accessed via msg.page.request
+  wp.request = request
 
   menu = Div(classes="fixed bottom-0 right-0 p-1 grid grid-col-1 select-none text-gray-500", a=wp)
   I(classes="w-10 h-10 w-1 fa-2x fa-fw fas fa-redo-alt", click=reload, a=menu)
