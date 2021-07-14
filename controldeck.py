@@ -263,7 +263,7 @@ class Button(Div):
         else:
           self.text = self.text_normal
 
-class ButtonSound(Div):
+class ButtonsSound(Div):
   div = None
   btype = None
   name = None
@@ -287,21 +287,21 @@ class ButtonSound(Div):
     if self.decrease_image:
       tmp = svg_element(self.decrease_image)
       if tmp is not None:
-        Button(click=self.decrease, a=self.div).add(tmp)
+        bdec = Button(click=self.decrease, a=self.div).add(tmp)
     elif self.decrease_icon:
-      Button(icon = self.decrease_icon, click=self.decrease, a=self.div)
+      bdec = Button(icon = self.decrease_icon, click=self.decrease, a=self.div)
     else:
-      Button(inner_html='- 5%', click=self.decrease, a=self.div)
+      bdec = Button(inner_html='- 5%', click=self.decrease, a=self.div)
 
     if self.increase_image:
       tmp = svg_element(self.increase_image)
       if tmp is not None:
-        Button(click=self.increase, a=self.div).add(tmp)
+        binc = Button(click=self.increase, a=self.div).add(tmp)
     elif self.increase_icon:
-      Button(icon=self.increase_icon,
-             click=self.increase, a=self.div)
+      binc = Button(icon=self.increase_icon,
+                   click=self.increase, a=self.div)
     else:
-      Button(inner_html='+ 5%', click=self.increase, a=self.div)
+      binc = Button(inner_html='+ 5%', click=self.increase, a=self.div)
 
     if self.mute_image and self.mute_image is not None:
       self.bmute = Button(click=self.mute,
@@ -333,6 +333,11 @@ class ButtonSound(Div):
     else:
       self.volume = Div(text=f"{self.description}: {volume(self.name)}",
                         classes="text-gray-600 text-center -mt-2", a=self)
+
+    self.classes += " border-0 ml-2 mr-2"
+    bdec.classes += " ml-2 mr-1"
+    binc.classes += " ml-1 mr-1"
+    self.bmute.classes += " ml-1 mr-2"
 
   async def decrease(self, msg):
     if self.btype == 'mic':
@@ -471,13 +476,13 @@ def application(request):
         vars()[var] = Div(classes="flex flex-wrap", a=wp)
       color_bg = f"background-color:{j['color-bg']};" if ishexcolor(j['color-bg']) else ''
       color_fg = f"color:{j['color-fg']};" if ishexcolor(j['color-fg']) else ''
-      ButtonSound(name=j['name'], description=j['description'], btype=j['type'],
-                  color_bg=j['color-bg'], color_fg=j['color-fg'],
-                  decrease_icon=j['decrease-icon'], decrease_image=j['decrease-image'],
-                  increase_icon=j['increase-icon'], increase_image=j['increase-image'],
-                  mute_icon=j['mute-icon'], mute_image=j['mute-image'],
-                  mute_icon_alt=j['mute-icon-alt'], mute_image_alt=j['mute-image-alt'],
-                  a=eval(var))
+      ButtonsSound(name=j['name'], description=j['description'], btype=j['type'],
+                   color_bg=j['color-bg'], color_fg=j['color-fg'],
+                   decrease_icon=j['decrease-icon'], decrease_image=j['decrease-image'],
+                   increase_icon=j['increase-icon'], increase_image=j['increase-image'],
+                   mute_icon=j['mute-icon'], mute_image=j['mute-image'],
+                   mute_icon_alt=j['mute-icon-alt'], mute_image_alt=j['mute-image-alt'],
+                   a=eval(var))
   for i in button_dict:
     var = var_prefix+i
     for j in button_dict[i]:
