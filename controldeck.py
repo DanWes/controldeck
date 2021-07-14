@@ -1,4 +1,11 @@
 #!/usr/bin/env python
+"""
+HTML style powered by Tailwind CSS
+
+NOTE: currently buttons only updated on page reload
+(buttons will be recreated)
+"""
+
 import sys
 from os import path, sep, makedirs
 from subprocess import Popen, PIPE, STDOUT
@@ -8,6 +15,17 @@ from justpy import Div, I, WebPage, SetRoute, parse_html, justpy
 from cairosvg import svg2svg
 
 APP_NAME = "ControlDeck"
+
+STATUS_DIV = Div()
+STATUS_DIV.classes = " border-2 border-gray-800 bg-gray-900 text-gray-600 h-40 m-2 pt-1 pl-2 mr-16 rounded-lg flex"
+
+def mouseenter_status(self, msg):
+  STATUS_DIV.inner_html = "<dl>"
+  STATUS_DIV.inner_html += "  <dt class='font-bold'>command</dt>"
+  STATUS_DIV.inner_html += f"  <dd class='pl-4'>{str(self.command)}</dd>"
+  STATUS_DIV.inner_html += "  <dt class='font-bold'>state</dt>"
+  STATUS_DIV.inner_html += f"  <dd class='pl-4'>{str(self.state)}</dd>"
+  STATUS_DIV.inner_html += "</dl>"
 
 def process(args, output=True):
   try:
@@ -157,6 +175,14 @@ def svg_element(image):
   return _svg
 
 class Button(Div):
+  """
+  usage
+    Button(text, text_alt, btype, command, command_alt,
+           color_bg=, color_fg=, state_pattern, state_pattern_alt,
+           state_command, state_command_alt,
+           icon, icon_alt, image, image_alt,
+           a)
+  """
   text = ''
   text_normal = ''
   text_alt = ''
@@ -179,7 +205,9 @@ class Button(Div):
   def __init__(self, **kwargs):
     super().__init__(**kwargs)
     self.text_normal = str(self.text)
+    self.on('mouseenter', mouseenter_status)
     if self.btype == 'empty':
+      # empty is like an invisible spacer with the size of a button
       self.classes = "w-20 h-20 m-2 p-1 flex select-none"
       self.text = ''
 
@@ -467,6 +495,10 @@ def application(request):
   if not wp.components:
     # config not found or empty, therefore insert an empty div to not get an error
     Div(text="add elements in controldeck.conf", classes="flex flex-wrap", a=wp)
+
+  status = config.get('default', 'status', fallback='False').title() == 'True'
+  if status:
+    wp.add(STATUS_DIV)
 
   return wp
 

@@ -1,12 +1,16 @@
 [Unit]
 Description=ControlDeck
+ConditionFileIsExecutable=%h/.local/bin/controldeck
 
 [Service]
 Environment=PYTHONUNBUFFERED=1
+TimeoutStartSec=30
+ExecStartPre=/bin/sh -c 'source /etc/profile'
 ExecStart=%h/.local/bin/controldeck
 Restart=always
 RestartSec=10
 StandardOutput=journal
 
 [Install]
-WantedBy=default.target
+WantedBy=multi-user.target
+#WantedBy=default.target
