@@ -19,12 +19,15 @@ APP_NAME = "ControlDeck"
 STATUS_DIV = Div()
 STATUS_DIV.classes = " border-2 border-gray-800 bg-gray-900 text-gray-600 h-40 m-2 pt-1 pl-2 mr-16 rounded-lg flex"
 
+def tohtml(text):
+  return text.replace("\n", "<br>")
+
 def mouseenter_status(self, msg):
   STATUS_DIV.inner_html = "<dl>"
   STATUS_DIV.inner_html += "  <dt class='font-bold'>command</dt>"
-  STATUS_DIV.inner_html += f"  <dd class='pl-4'>{str(self.command)}</dd>"
+  STATUS_DIV.inner_html += f"  <dd class='pl-4'>{tohtml(self.command.strip())}</dd>"
   STATUS_DIV.inner_html += "  <dt class='font-bold'>state</dt>"
-  STATUS_DIV.inner_html += f"  <dd class='pl-4'>{str(self.state)}</dd>"
+  STATUS_DIV.inner_html += f"  <dd class='pl-4'>{tohtml(self.state.strip())}</dd>"
   STATUS_DIV.inner_html += "</dl>"
 
 def process(args, output=True):
