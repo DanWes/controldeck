@@ -2,13 +2,28 @@
 import sys
 import os
 import argparse
+from tkinter import Tk, messagebox
 from webview import create_window, start
 from controldeck import config_load, process
 
 def main(args, pid=-1):
-  if args.start and \
-     process("ps -ef | grep -i controldeck | grep -v controldeck-gui | grep -v grep") == "":
+  controldeck_process = process("ps --no-headers -C controldeck")
+
+  if args.start and controldeck_process == "":
     process("controldeck &", output=False)
+
+  elif controldeck_process == "":
+    # cli output
+    print("controldeck is not running!")
+
+    # gui output
+    # Tkinter must have a root window. If you don't create one, one will be created for you. If you don't want this root window, create it and then hide it:
+    root = Tk()
+    root.withdraw()
+    messagebox.showinfo("ControlDeck", "controldeck is not running!")
+    # Other option would be to use the root window to display the information (Label, Button)
+
+    sys.exit(2)
 
   config = config_load(conf=args.config)
   url = config.get('gui', 'url', fallback='http://0.0.0.0:8000') + "/?gui&pid=" + str(pid)
