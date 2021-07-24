@@ -17,17 +17,27 @@ from cairosvg import svg2svg
 APP_NAME = "ControlDeck"
 
 STATUS_DIV = Div()
-STATUS_DIV.classes = " border-2 border-gray-800 bg-gray-900 text-gray-600 h-40 m-2 pt-1 pl-2 mr-16 rounded-lg flex"
+STATUS_DIV.classes = " border-2 border-gray-800 bg-gray-900 text-gray-600 h-40 m-2 pt-1 pl-2 mr-16 rounded-lg flex overflow-y-auto"
+STATUS_DIV.style = "scrollbar-width: thin;"
 
 def tohtml(text):
   return text.replace("\n", "<br>")
 
 def mouseenter_status(self, msg):
+  """Div style see STATUS_DIV.classes"""
   STATUS_DIV.inner_html = "<dl>"
   STATUS_DIV.inner_html += "  <dt class='font-bold'>command</dt>"
   STATUS_DIV.inner_html += f"  <dd class='pl-4'>{tohtml(self.command.strip())}</dd>"
+  STATUS_DIV.inner_html += "  <dt class='font-bold'>command-alt</dt>"
+  STATUS_DIV.inner_html += f"  <dd class='pl-4'>{tohtml(self.command_alt.strip())}</dd>"
   STATUS_DIV.inner_html += "  <dt class='font-bold'>state</dt>"
   STATUS_DIV.inner_html += f"  <dd class='pl-4'>{tohtml(self.state.strip())}</dd>"
+  STATUS_DIV.inner_html += "  <dt class='font-bold'>state-pattern</dt>"
+  STATUS_DIV.inner_html += f"  <dd class='pl-4'>{tohtml(self.state_pattern.strip())}</dd>"
+  #STATUS_DIV.inner_html += "  <dt class='font-bold'>state-pattern-alt</dt>"
+  #STATUS_DIV.inner_html += f"  <dd class='pl-4'>{tohtml(self.state_pattern_alt.strip())}</dd>"
+  STATUS_DIV.inner_html += "  <dt class='font-bold'>switched</dt>"
+  STATUS_DIV.inner_html += f"  <dd class='pl-4'>{str(self.switched)}</dd>"
   STATUS_DIV.inner_html += "</dl>"
 
 def process(args, output=True):
@@ -190,8 +200,8 @@ class Button(Div):
   text_normal = ''
   text_alt = ''
   btype = None
-  command = None
-  command_alt = None
+  command = ''
+  command_alt = ''
   color_bg = ''
   color_fg = ''
   icon = ''
@@ -205,6 +215,32 @@ class Button(Div):
   state_pattern_alt = ''
   state_command = ''
   state_command_alt = ''
+  switched = False
+  def update_state(self):
+    self.state = process(self.state_command)
+    # update switched state
+    if self.state_pattern != '':
+      if search(self.state_pattern, self.state):
+        # search is None if search has no match otherwise re.Match object
+        self.switched = False
+      else:
+        self.switched = True
+    # change text / icon
+    if not self.switched:
+      if self.image:
+        self.components[0] = self.image_element
+      elif self.icon:
+        self.inner_html = f"<i class='fa-2x {self.icon}'><i>"
+      else:
+        self.text = self.text_normal
+    else:
+      if self.image_alt:
+        self.components[0] = self.image_alt_element
+      elif self.icon_alt:
+        self.inner_html = f"<i class='fa-2x {self.icon_alt}'><i>"
+      elif self.text_alt:
+        self.text = self.text_alt
+
   def __init__(self, **kwargs):
     super().__init__(**kwargs)
     self.text_normal = str(self.text)
@@ -220,28 +256,21 @@ class Button(Div):
       self.style = f"background-color:{self.color_bg};" if ishexcolor(self.color_bg) else ''
       self.style += f"color:{self.color_fg};" if ishexcolor(self.color_fg) else ''
 
-      if self.command is not None:
+      if self.command != '':
         def click(self, msg):
           self.state = process(self.state_command)
-          if search(self.state_pattern, self.state):
-            if self.command_alt is None:
-              process_shell(self.command)
-            else:
-              process_shell(self.command_alt)
-            if self.image_alt:
-              self.components[0] = self.image_alt_element
-            elif self.icon_alt:
-              self.inner_html = f"<i class='fa-2x {self.icon_alt}'><i>"
-            elif self.text_alt:
-              self.text = self.text_alt
-          else:
+          # run command
+          if not self.switched:
             process_shell(self.command)
-            if self.image:
-              self.components[0] = self.image_element
-            elif self.icon:
-              self.inner_html = f"<i class='fa-2x {self.icon}'><i>"
+          else:
+            if self.command_alt != '':
+              process_shell(self.command_alt)
             else:
-              self.text = self.text_normal
+              process_shell(self.command)
+          # update switched state
+          if self.state_pattern == '':
+            self.switched = not self.switched
+          self.update_state()
         self.on('click', click)
 
       self.state = process(self.state_command)
@@ -253,18 +282,17 @@ class Button(Div):
           self.add(self.image_alt_element)
         else:
           self.add(self.image_element)
-
       elif self.icon:
         if self.icon_alt and not search(self.state_pattern, self.state):
           self.inner_html = f"<i class='fa-2x {self.icon_alt}'><i>"
         else:
           self.inner_html = f"<i class='fa-2x {self.icon}'><i>"
-
       else:
         if self.text_alt and not search(self.state_pattern, self.state):
           self.text = self.text_alt
         else:
           self.text = self.text_normal
+      self.update_state()
 
 class ButtonsSound(Div):
   div = None
@@ -457,8 +485,8 @@ def application(request):
               'text-alt': config.get(i, 'text-alt', fallback=''),
               'color-bg': config.get(i, 'color-bg', fallback=''),
               'color-fg': config.get(i, 'color-fg', fallback=''),
-              'command': config.get(i, 'command', fallback=None),
-              'command-alt': config.get(i, 'command-alt', fallback=None),
+              'command': config.get(i, 'command', fallback=''),
+              'command-alt': config.get(i, 'command-alt', fallback=''),
               'state': config.get(i, 'state', fallback=''),
               'state-alt': config.get(i, 'state-alt', fallback=''),
               'state-command': config.get(i, 'state-command', fallback=''),
