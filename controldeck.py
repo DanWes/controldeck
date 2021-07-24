@@ -34,8 +34,8 @@ def mouseenter_status(self, msg):
   STATUS_DIV.inner_html += f"  <dd class='pl-4'>{tohtml(self.state.strip())}</dd>"
   STATUS_DIV.inner_html += "  <dt class='font-bold'>state-pattern</dt>"
   STATUS_DIV.inner_html += f"  <dd class='pl-4'>{tohtml(self.state_pattern.strip())}</dd>"
-  #STATUS_DIV.inner_html += "  <dt class='font-bold'>state-pattern-alt</dt>"
-  #STATUS_DIV.inner_html += f"  <dd class='pl-4'>{tohtml(self.state_pattern_alt.strip())}</dd>"
+  STATUS_DIV.inner_html += "  <dt class='font-bold'>state-pattern-alt</dt>"
+  STATUS_DIV.inner_html += f"  <dd class='pl-4'>{tohtml(self.state_pattern_alt.strip())}</dd>"
   STATUS_DIV.inner_html += "  <dt class='font-bold'>switched</dt>"
   STATUS_DIV.inner_html += f"  <dd class='pl-4'>{str(self.switched)}</dd>"
   STATUS_DIV.inner_html += "</dl>"
@@ -219,14 +219,16 @@ class Button(Div):
   def update_state(self):
     self.state = process(self.state_command)
     # update switched state
-    if self.state_pattern != '':
-      if search(self.state_pattern, self.state):
-        # search is None if search has no match otherwise re.Match object
-        self.switched = False
-      else:
-        self.switched = True
+    if self.state_pattern != '' and search(self.state_pattern, self.state):
+      # search is None if search has no match otherwise re.Match object
+      self.switched = False
+    elif self.state_pattern_alt != '' and search(self.state_pattern_alt, self.state):
+      self.switched = True
+    else:
+      self.switched = False
     # change text / icon
     if not self.switched:
+      self.classes = self.classes.replace("border-green-700", "border-gray-700")
       if self.image:
         self.components[0] = self.image_element
       elif self.icon:
@@ -234,6 +236,7 @@ class Button(Div):
       else:
         self.text = self.text_normal
     else:
+      self.classes = self.classes.replace("border-gray-700", "border-green-700")
       if self.image_alt:
         self.components[0] = self.image_alt_element
       elif self.icon_alt:
@@ -251,7 +254,7 @@ class Button(Div):
       self.text = ''
 
     else:
-      self.classes = "bg-gray-800 hover:bg-gray-700 text-gray-500 w-20 h-20 m-2 p-1 rounded-lg font-bold flex items-center text-center justify-center select-none"
+      self.classes = "border-2 border-gray-700 bg-gray-800 hover:bg-gray-700 text-gray-500 w-20 h-20 m-2 p-1 rounded-lg font-bold flex items-center text-center justify-center select-none"
 
       self.style = f"background-color:{self.color_bg};" if ishexcolor(self.color_bg) else ''
       self.style += f"color:{self.color_fg};" if ishexcolor(self.color_fg) else ''
@@ -268,8 +271,8 @@ class Button(Div):
             else:
               process_shell(self.command)
           # update switched state
-          if self.state_pattern == '':
-            self.switched = not self.switched
+          #if self.state_pattern == '':
+          #  self.switched = not self.switched
           self.update_state()
         self.on('click', click)
 
