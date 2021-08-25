@@ -1,13 +1,13 @@
 [Unit]
 Description=ControlDeck
-ConditionFileIsExecutable=/usr/bin/controldeck
+ConditionFileIsExecutable=%h/.local/bin/controldeck
 After=network.target
 
 [Service]
 Environment=PYTHONUNBUFFERED=1
 TimeoutStartSec=30
 ExecStartPre=/bin/sh -c 'source /etc/profile'
-ExecStart=/usr/bin/controldeck
+ExecStart=%h/.local/bin/controldeck
 Restart=on-failure
 RestartSec=4
 StandardOutput=journal
