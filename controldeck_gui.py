@@ -5,6 +5,17 @@ import argparse
 from tkinter import Tk, messagebox
 from webview import create_window, start
 from controldeck import config_load, process
+import threading
+import time
+
+def thread_function(name):
+  # print("Thread %s: starting", name)
+  for i in range(10):
+    # print("Thread %s: finishing", name)
+    p = process("xdotool search --name 'ControlDeck'")
+    if p:
+      process("xdotool search --name 'ControlDeck' set_window --class 'controldeck'", output=False)
+    time.sleep(0.1)
 
 def main(args, pid=-1):
   controldeck_process = process("ps --no-headers -C controldeck")
@@ -84,6 +95,8 @@ def main(args, pid=-1):
                 background_color='#000000',
                 transparent=True,
                 text_select=False)
+  x = threading.Thread(target=thread_function, args=(1,))
+  x.start()
   start()
 
 def cli():
