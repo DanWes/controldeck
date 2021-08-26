@@ -14,7 +14,8 @@ def thread_function(name):
     # print("Thread %s: finishing", name)
     p = process("xdotool search --name 'ControlDeck'")
     if p:
-      process("xdotool search --name 'ControlDeck' set_window --class 'controldeck'", output=False)
+      # process("xdotool search --name 'ControlDeck' set_window --class 'controldeck'", output=False)
+      process("xdotool search --name 'ControlDeck' set_window --classname 'controldeck' --class 'ControlDeck' windowunmap windowmap", output=False)
     time.sleep(0.1)
 
 def main(args, pid=-1):
