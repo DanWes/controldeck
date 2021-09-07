@@ -12,14 +12,19 @@ def thread_function(name):
   # print("Thread %s: starting", name)
   for i in range(10):
     # print("Thread %s: finishing", name)
-    p = process("xdotool search --name 'ControlDeck'")
+    # p = process("xdotool search --name 'ControlDeck'")
+    # intersection of ControlDeck window name and empty classname
+    p = process("comm -12 <(xdotool search --name 'ControlDeck' | sort) <(xdotool search --classname '^$' | sort)")
     if p:
+      # print(p)
       # process("xdotool search --name 'ControlDeck' set_window --class 'controldeck'", output=False)
-      process("xdotool search --name 'ControlDeck' set_window --classname 'controldeck' --class 'ControlDeck' windowunmap windowmap", output=False)
+      # process("xdotool search --name 'ControlDeck' set_window --classname 'controldeck' --class 'ControlDeck' windowunmap windowmap", output=False)  # will find to many wrong ids
+      process(f"xdotool set_window --classname 'controldeck' --class 'ControlDeck' {p} windowunmap {p} windowmap {p}", output=False)
     time.sleep(0.1)
 
 def main(args, pid=-1):
-  controldeck_process = process("ps --no-headers -C controldeck")
+  #controldeck_process = process("ps --no-headers -C controldeck")
+  controldeck_process = process("ps --no-headers -C controldeck || ps aux | grep -e 'python.*controldeck.py' | grep -v grep")
 
   if args.start and controldeck_process == "":
     process("controldeck &", output=False)

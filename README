@@ -1,21 +1,25 @@
 Install
 
-  ./setup.sh
-
   Requirements:
-  - For volume buttons: libpulse
+  - (optionally) for volume buttons: libpulse
+
+  local:
+    ./setup.sh
 
 Uninstall
 
   pip uninstall controldeck
-
+  rm ~/.local/share/application/controldeck.desktop
+  rm ~/.config/systemd/user/controldeck.service
 
 Configuration
 
   ~/.config/controldeck/controldeck.conf
   See example in example directory.
 
+Start (autostart) with systemd
   systemctl --user start controldeck.service
   systemctl --user enable controldeck.service
 
   journalctl --user-unit=controldeck -e
+  journalctl --user-unit=controldeck -f

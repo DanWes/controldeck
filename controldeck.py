@@ -11,7 +11,7 @@ from os import path, sep, makedirs
 from subprocess import Popen, PIPE, STDOUT
 from configparser import ConfigParser
 from re import search, IGNORECASE
-from justpy import Div, I, WebPage, SetRoute, parse_html, justpy
+from justpy import Div, I, WebPage, SetRoute, parse_html, run_task, justpy
 from cairosvg import svg2svg
 
 APP_NAME = "ControlDeck"
@@ -254,7 +254,7 @@ class Button(Div):
       self.text = ''
 
     else:
-      self.classes = "border-2 border-gray-700 bg-gray-800 hover:bg-gray-700 text-gray-500 w-20 h-20 m-2 p-1 rounded-lg font-bold flex items-center text-center justify-center select-none"
+      self.classes = "fitin border-2 border-gray-700 bg-gray-800 hover:bg-gray-700 text-gray-500 w-20 h-20 m-2 p-1 rounded-lg font-bold flex items-center text-center justify-center select-none"
 
       self.style = f"background-color:{self.color_bg};" if ishexcolor(self.color_bg) else ''
       self.style += f"color:{self.color_fg};" if ishexcolor(self.color_fg) else ''
@@ -292,9 +292,13 @@ class Button(Div):
           self.inner_html = f"<i class='fa-2x {self.icon}'><i>"
       else:
         if self.text_alt and not search(self.state_pattern, self.state):
-          self.text = self.text_alt
-        else:
-          self.text = self.text_normal
+          # self.text = self.text_alt
+          # div for fitin logic
+          self.inner_html = f"<div>{self.text_alt}</div>"
+        elif self.text_normal:  # only if string is not empty (for font icons)
+          # self.text = self.text_normal
+          # div for fitin logic
+          self.inner_html = f"<div>{self.text_normal}</div>"
       self.update_state()
 
 class ButtonsSound(Div):
@@ -530,6 +534,25 @@ def application(request):
              state_command_alt=j['state-command-alt'],
              icon=j['icon'], icon_alt=j['icon-alt'],
              image=j['image'], image_alt=j['image-alt'], a=eval(var))
+
+  # fit text of button
+  javascript_string = """
+  function fitin() {
+    var fitindiv = document.querySelectorAll(".fitin");
+    var i;
+    for (i = 0; i < fitindiv.length; i++) {
+      // inner div needed to see if inner div is larger in height to reduce the font-size
+      fitindivdiv = fitindiv[i].firstElementChild;
+      while( fitindivdiv.clientHeight > fitindiv[i].clientHeight ) {
+        fitindivdiv.style.fontSize = (parseInt(window.getComputedStyle(fitindivdiv).fontSize) - 1) + "px";
+      }
+    }
+  };
+  fitin();
+  """
+  async def page_ready(self, msg):
+    run_task(self.run_javascript(javascript_string, request_id='fitin_logic', send=False))
+  wp.on('page_ready', page_ready)
 
   if not wp.components:
     # config not found or empty, therefore insert an empty div to not get an error
