@@ -14,36 +14,19 @@ def thread_function(name):
     # print("Thread %s: finishing", name)
     # p = process("xdotool search --name 'ControlDeck'")
     # intersection of ControlDeck window name and empty classname
-    p = process("comm -12 <(xdotool search --name 'ControlDeck' | sort) <(xdotool search --classname '^$' | sort)")
+    p = process("comm -12 <(xdotool search --name 'ControlDeck' | sort) <(xdotool search --classname '^$' | sort)", shell=True)
     if p:
       # print(p)
       # process("xdotool search --name 'ControlDeck' set_window --class 'controldeck'", output=False)
       # process("xdotool search --name 'ControlDeck' set_window --classname 'controldeck' --class 'ControlDeck' windowunmap windowmap", output=False)  # will find to many wrong ids
-      process(f"xdotool set_window --classname 'controldeck' --class 'ControlDeck' {p} windowunmap {p} windowmap {p}", output=False)
+      process(f"xdotool set_window --classname 'controldeck' --class 'ControlDeck' {p} windowunmap {p} windowmap {p}", shell=True, output=False)
     time.sleep(0.1)
 
 def main(args, pid=-1):
-  #controldeck_process = process("ps --no-headers -C controldeck")
-  controldeck_process = process("ps --no-headers -C controldeck || ps aux | grep -e 'python.*controldeck.py' | grep -v grep")
-
-  if args.start and controldeck_process == "":
-    process("controldeck &", output=False)
-
-  elif controldeck_process == "":
-    # cli output
-    print("controldeck is not running!")
-
-    # gui output
-    # Tkinter must have a root window. If you don't create one, one will be created for you. If you don't want this root window, create it and then hide it:
-    root = Tk()
-    root.withdraw()
-    messagebox.showinfo("ControlDeck", "controldeck is not running!")
-    # Other option would be to use the root window to display the information (Label, Button)
-
-    sys.exit(2)
-
   config = config_load(conf=args.config)
-  url = config.get('gui', 'url', fallback='http://0.0.0.0:8000') + "/?gui&pid=" + str(pid)
+  host = config.get('default', 'host', fallback='0.0.0.0')
+  port = config.get('default', 'port', fallback='8000')
+  url = f"http://{host}:{port}/?gui&pid={str(pid)}"
   try:
     width = int(config.get('gui', 'width', fallback=800))
   except ValueError as e:
@@ -80,6 +63,28 @@ def main(args, pid=-1):
   frameless = config.get('gui', 'frameless', fallback='False').title() == 'True'
   minimized = config.get('gui', 'minimized', fallback='False').title() == 'True'
   on_top = config.get('gui', 'always_on_top', fallback='False').title() == 'True'
+
+  #controldeck_process = process("ps --no-headers -C controldeck")
+  controldeck_process = process("ps --no-headers -C controldeck || ps aux | grep -e 'python.*controldeck.py' | grep -v grep", shell=True, output=True)
+
+  if args.start and controldeck_process == "":
+    cmd = "controldeck"
+    cmd += " --config={args.config}" if args.config else ""
+    print(cmd)
+    process(cmd, shell=True, output=False)
+
+  elif controldeck_process == "":
+    # cli output
+    print("controldeck is not running!")
+
+    # gui output
+    # Tkinter must have a root window. If you don't create one, one will be created for you. If you don't want this root window, create it and then hide it:
+    root = Tk()
+    root.withdraw()
+    messagebox.showinfo("ControlDeck", "controldeck is not running!")
+    # Other option would be to use the root window to display the information (Label, Button)
+
+    sys.exit(2)
 
   create_window("ControlDeck",
                 url=url,
