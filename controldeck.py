@@ -859,7 +859,7 @@ async def application(request):
             # remove '\t\tnode.name = ' and remove quotation marks at front and back
             tmp4['properties']['node.name'] = re.sub('[ \t]*node.name = ', '', k)[1:-1]
       tmp3.append(tmp4)
-  import xdg.IconTheme
+  #import xdg.IconTheme
   #print(tmp3)
   #icon_name = ''
   #icon_name = i['properties']['application.icon_name'] if 'application.icon_name' in i['properties'] else icon_name
