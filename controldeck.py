@@ -104,10 +104,10 @@ def config_load(conf=''):
   config = ConfigParser(strict=False)
   # fist check if file is given
   if conf:
-    config_file_path = conf
+    config_file = conf
   else:
     # check if config file is located at the script's location
-    config_file = path.dirname(path.realpath(__file__)) + sep + CONFIG_FILE_NAME  # realpath; resolve symlink
+    config_file = path.join(path.dirname(path.realpath(__file__)), CONFIG_FILE_NAME)  # realpath; resolve symlink
     if not path.exists(config_file):
       # if not, use the file inside .config
       makedirs(CONFIG_DIR, exist_ok=True)
