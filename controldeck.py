@@ -61,9 +61,17 @@ APP_NAME = "ControlDeck"
 COLOR_PRIME = "blue-grey-8"        # "blue-grey-7" "blue-grey-8" 'light-blue-9'
 COLOR_PRIME_TEXT = "blue-grey-7"
 COLOR_SELECT = "light-blue-9"
+DEBUG = False
 
-CONFIG_FILE = '~/.config/controldeck/controldeck.conf'
-CONFIG_FILE_FULL = path.expanduser(CONFIG_FILE)
+CONFIG_DIR = path.join(path.expanduser("~"), '.config', APP_NAME.lower())
+CONFIG_FILE_NAME = APP_NAME.lower() + '.conf'
+CONFIG_FILE = path.join(CONFIG_DIR, CONFIG_FILE_NAME)
+CACHE_DIR = path.join(path.expanduser('~'), '.cache', APP_NAME.lower())
+STATIC_DIR = path.join(CACHE_DIR, 'static')
+
+# justpy config overwrite
+import jpcore.justpy_config
+jpcore.justpy_config.STATIC_DIRECTORY = STATIC_DIR
 
 def tohtml(text):
   return text.replace("\n", "<br>")
@@ -94,17 +102,18 @@ def process(command_line, shell=False, output=True, stdout=PIPE, stderr=STDOUT):
 
 def config_load(conf=''):
   config = ConfigParser(strict=False)
+  # fist check if file is given
   if conf:
-    full_config_file_path = conf
+    config_file_path = conf
   else:
-    config_file = "controldeck.conf"
-    full_config_file_path = path.dirname(path.realpath(__file__)) + sep + config_file
+    # check if config file is located at the script's location
+    config_file = path.dirname(path.realpath(__file__)) + sep + CONFIG_FILE_NAME  # realpath; resolve symlink
     if not path.exists(config_file):
-      config_folder = path.join(path.expanduser("~"), '.config', APP_NAME.lower())
-      makedirs(config_folder, exist_ok=True)
-      full_config_file_path = path.join(config_folder, config_file)
+      # if not, use the file inside .config
+      makedirs(CONFIG_DIR, exist_ok=True)
+      config_file = CONFIG_FILE
   try:
-    config.read(full_config_file_path)
+    config.read(path.expanduser(config_file))
   except Exception as e:
     print(f"{e}")
   #print(config.sections())
@@ -148,9 +157,13 @@ class Button(QBtn):
       self.style += "min-height: 77px;"   # image + 2 text lines
       self.style += "line-height: 1em;"
       if self.image and path.exists(self.image):
-        static_dir = getcwd() + '/static'
-        shutil.copy2(self.image, static_dir)
+        # copy image files into the static folder
         basename = path.basename(self.image)
+        staticfile = path.join(STATIC_DIR, basename)
+        if not path.exists(staticfile):
+          shutil.copy2(self.image, staticfile)
+          if DEBUG:
+            print(f'[DEBUG] copy {self.image} to {staticfile}')
         self.icon = f"img:/static/{basename}"
         # <q-icon name="img:data:image/svg+xml;charset=utf8,<svg xmlns='http://www.w3.org/2000/svg' height='140' width='500'><ellipse cx='200' cy='80' rx='100' ry='50' style='fill:yellow;stroke:purple;stroke-width:2' /></svg>" />
         # <q-btn icon="img:data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==" ... />
@@ -572,9 +585,9 @@ async def application(request):
 
   def toggle_edit_config(self, msg):
     self.dialog.value = True
-    if path.exists(CONFIG_FILE_FULL):
+    if path.exists(CONFIG_FILE):
       self.dialog_label.text = CONFIG_FILE
-      with open(CONFIG_FILE_FULL, encoding='utf-8') as file:
+      with open(CONFIG_FILE, encoding='utf-8') as file:
         self.dialog_input.value = file.read()
   def edit_dialog_after(self, msg):
     self.dialog_input.remove_class('changed')
@@ -594,8 +607,8 @@ async def application(request):
   QSpace(a=edit_dialog_bar)
   QSeparator(vertical=True,spaced=True,a=edit_dialog_bar)
   def edit_dialog_save(self, msg):
-    if path.exists(CONFIG_FILE_FULL):
-      with open(CONFIG_FILE_FULL, mode='w', encoding='utf-8') as file:
+    if path.exists(CONFIG_FILE):
+      with open(CONFIG_FILE, mode='w', encoding='utf-8') as file:
         file.write(self.dialog_input.value)
     self.dialog_input.remove_class('changed')
   edit_dialog_btn_save = QBtn(
@@ -786,86 +799,6 @@ async def application(request):
     self.qnotify.notify = False
   test_btn.on('after', test_btn_after)
 
-  # tmp = process('pactl -f json list sink-inputs', stderr=None)
-  # print('')
-  # #print(tmp)
-  # #print(len(tmp))
-  # tmp = json.loads(tmp)
-  # print(tmp)
-  # print(len(tmp))
-  # if tmp:
-  #   print('mute:', tmp[0]['mute'])
-  #   print('volume:', tmp[0]['volume']['front-left']['value_percent'][:-1])
-  #   print('application.process.binary:', tmp[0]['properties']['application.process.binary'])
-  #   print('application.process.id:', tmp[0]['properties']['application.process.id'])
-  #   if 'application.icon_name' in tmp[0]['properties']:
-  #     print('application.icon_name:', tmp[0]['properties']['application.icon_name'])
-  #   if 'media.icon_name' in tmp[0]['properties']:
-  #     print('media.icon_name:', tmp[0]['properties']['media.icon_name'])
-  #   print('media.name:', tmp[0]['properties']['media.name'])
-  # print('')
-
-  #tmp2 = process('pactl list sink-inputs | grep media.name', shell=True, stderr=None)
-  #print(tmp2)
-  # remove '    name.media = ' and remove quotation marks at front and back
-  # print([i[1:-1] for i in re.sub('[ \t]*media.name = ', '', tmp2, re.S).split('\n')])
-
-  # own pactl list sink-inputs parser (pactl 16.1, Compiled with libpulse 16.1.0)
-  tmp2 = process("pactl list sink-inputs", shell=True, stderr=None)
-  #print(tmp2)
-  tmp3 = []
-  for i in tmp2.split('Sink Input #'):  # split block
-    if i:
-      tmp4 = {}
-      for j,k in enumerate(i.split('\n')):  # split on every line
-        if j == 0:                          # fist entry
-          tmp4['id'] = k                    # is the id
-          tmp4['properties'] = {}           # initialize
-        if k:                               # others are attributes
-          if 'Driver: ' in k:
-            tmp4['driver'] = re.sub('[ \t]*Driver: ', '', k)
-          elif 'Mute: ' in k:
-            tmp5 = re.sub('[ \t]*Mute: ', '', k)
-            tmp5 = tmp5.replace('no', 'false')
-            tmp5 = tmp5.replace('yes', 'true')
-            tmp4['mute'] = tmp5
-          elif 'Volume: ' in k:
-            tmp4['volume'] = {}
-            for l in re.sub('[ \t]*Volume: ', '', k).split(','):
-              tmp5 = l.split(': ')
-              tmp6 = tmp5[1].split(' / ')
-              tmp4['volume'][tmp5[0].strip()] = {
-                'value': tmp6[0], 'value_percent': tmp6[1], 'db': tmp6[2]}
-          # Properties
-          elif 'application.name = ' in k:
-            # remove '\t\tapplication.name = ' and remove quotation marks at front and back
-            tmp4['properties']['application.name'] = re.sub('[ \t]*application.name = ', '', k)[1:-1]
-          elif 'application.process.id = ' in k:
-            # remove '\t\tapplication.process.id = ' and remove quotation marks at front and back
-            tmp4['properties']['application.process.id'] = re.sub('[ \t]*application.process.id = ', '', k)[1:-1]
-          elif 'application.process.binary = ' in k:
-            # remove '\t\tapplication.process.binary = ' and remove quotation marks at front and back
-            tmp4['properties']['application.process.binary'] = re.sub('[ \t]*application.process.binary = ', '', k)[1:-1]
-          elif 'media.icon_name = ' in k:
-            # remove '\t\tmedia.icon_name = ' and remove quotation marks at front and back
-            tmp4['properties']['media.icon_name'] = re.sub('[ \t]*media.icon_name = ', '', k)[1:-1]  # only pipewire?
-          elif 'application.icon_name = ' in k:
-            # remove '\t\tapplication.icon_name = ' and remove quotation marks at front and back
-            tmp4['properties']['application.icon_name'] = re.sub('[ \t]*application.icon_name = ', '', k)[1:-1]  # only pulseaudio? (seen on wsl)
-          elif 'media.name = ' in k:
-            # remove '\t\tmedia.name = ' and remove quotation marks at front and back
-            tmp4['properties']['media.name'] = re.sub('[ \t]*media.name = ', '', k)[1:-1]
-          elif 'node.name = ' in k:
-            # remove '\t\tnode.name = ' and remove quotation marks at front and back
-            tmp4['properties']['node.name'] = re.sub('[ \t]*node.name = ', '', k)[1:-1]
-      tmp3.append(tmp4)
-  #import xdg.IconTheme
-  #print(tmp3)
-  #icon_name = ''
-  #icon_name = i['properties']['application.icon_name'] if 'application.icon_name' in i['properties'] else icon_name
-  #icon_name = i['properties']['media.icon_name'] if 'media.icon_name' in i['properties'] else icon_name
-  #icon = 'img:' + xdg.IconTheme.getIconPath(icon_name, size=None, extensions=['svg', 'png']),
-
   # TODO: change reference wp.components to ...
   if not wp.components:
     # config not found or empty, therefore insert an empty div to not get an error
@@ -887,9 +820,14 @@ def main(args):
   config = config_load(args.config)
   host = config.get('default', 'host', fallback='0.0.0.0')
   port = config.get('default', 'port', fallback='8000')
-  justpy(host=host, port=port, static_directory="./static")
+  
+  if not path.exists(STATIC_DIR):
+    makedirs(STATIC_DIR, exist_ok=True)
+  justpy(host=host, port=port, start_server=True)
+  # this process will run as main loop
 
 def cli():
+  global DEBUG
   parser = argparse.ArgumentParser(
     description=__doc__, prefix_chars='-',
     formatter_class=argparse.RawTextHelpFormatter,
@@ -901,7 +839,10 @@ def cli():
   args = parser.parse_args()
 
   if args.debug:
-    print(args)
+    DEBUG = True
+    print('[DEBUG] args:', args)
+    print('[DEBUG] __file__:', __file__)
+    print('[DEBUG] cwd:', getcwd())
 
   main(args)
 
