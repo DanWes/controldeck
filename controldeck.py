@@ -16,6 +16,24 @@ import json
 import time
 import argparse
 from addict import Dict  # also used in justpy
+
+APP_NAME = "ControlDeck"
+COLOR_PRIME = "blue-grey-8"        # "blue-grey-7" "blue-grey-8" 'light-blue-9'
+COLOR_PRIME_TEXT = "blue-grey-7"
+COLOR_SELECT = "light-blue-9"
+DEBUG = False
+
+CONFIG_DIR = path.join(path.expanduser("~"), '.config', APP_NAME.lower())
+CONFIG_FILE_NAME = APP_NAME.lower() + '.conf'
+CONFIG_FILE = path.join(CONFIG_DIR, CONFIG_FILE_NAME)
+CACHE_DIR = path.join(path.expanduser('~'), '.cache', APP_NAME.lower())
+STATIC_DIR = path.join(CACHE_DIR, 'static')
+
+# justpy config overwrite
+# NEEDS to be done before loading justpy 
+import jpcore.justpy_config
+jpcore.justpy_config.STATIC_DIRECTORY = STATIC_DIR
+
 from justpy import (
   Div,
   I,
@@ -56,22 +74,6 @@ from justpy import (
   run_task,
   justpy
 )
-
-APP_NAME = "ControlDeck"
-COLOR_PRIME = "blue-grey-8"        # "blue-grey-7" "blue-grey-8" 'light-blue-9'
-COLOR_PRIME_TEXT = "blue-grey-7"
-COLOR_SELECT = "light-blue-9"
-DEBUG = False
-
-CONFIG_DIR = path.join(path.expanduser("~"), '.config', APP_NAME.lower())
-CONFIG_FILE_NAME = APP_NAME.lower() + '.conf'
-CONFIG_FILE = path.join(CONFIG_DIR, CONFIG_FILE_NAME)
-CACHE_DIR = path.join(path.expanduser('~'), '.cache', APP_NAME.lower())
-STATIC_DIR = path.join(CACHE_DIR, 'static')
-
-# justpy config overwrite
-import jpcore.justpy_config
-jpcore.justpy_config.STATIC_DIRECTORY = STATIC_DIR
 
 def tohtml(text):
   return text.replace("\n", "<br>")
@@ -843,6 +845,9 @@ def cli():
     print('[DEBUG] args:', args)
     print('[DEBUG] __file__:', __file__)
     print('[DEBUG] cwd:', getcwd())
+    print('[DEBUG] CONFIG_DIR:', CONFIG_DIR)
+    print('[DEBUG] CACHE_DIR:', CACHE_DIR)
+    print('[DEBUG] STATIC_DIR:', STATIC_DIR)
 
   main(args)
 
