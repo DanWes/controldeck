@@ -308,7 +308,7 @@ class Volume(Div):
       else:
         cls.data['sinks'] = json.loads(sinks)
 
-        sink_inputs = process('pactl -f json list sink-inputs 2>/dev/null', shell=True)  # stderr might have e.g.: Invalid non-ASCII character: 0xffffffc3
+        sink_inputs = process('pactl -f json list sink-inputs', shell=True, stderr=None)  # stderr might have e.g.: Invalid non-ASCII character: 0xffffffc3
         if 'failure' in sinks:
           print("'pactl -f json list sink-inputs' returns", sink_inputs)
           cls.data['sink-inputs'] = []
