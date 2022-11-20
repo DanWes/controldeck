@@ -209,8 +209,13 @@ class Volume(Div):
       elif self.vtype == 'sink-input':
         cmdl_toggle = 'pactl set-sink-input-mute {name} toggle'
         cmdl_value = 'pactl set-sink-input-volume {name} {value}%'
+        app_name = self.pa_state['properties']['application.process.binary'] if 'application.process.binary' in self.pa_state['properties'] else ''
+        if app_name == '':
+          app_name = self.pa_state['properties']['application.name'] if 'application.name' in self.pa_state['properties'] else ''
+        if app_name == '':
+          app_name = self.pa_state['properties']['node.name'] if 'node.name' in self.pa_state['properties'] else ''
         self.description = \
-          self.pa_state['properties']['application.process.binary'] +\
+          app_name +\
           ': ' +\
           self.pa_state['properties']['media.name']
       # local vars
