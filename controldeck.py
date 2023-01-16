@@ -795,25 +795,26 @@ async def application(request):
   #  wp.add(STATUS_DIV)
 
   # TODO: Test
-  test_row = Div(classes="row q-pa-sm q-gutter-sm", a=tab_panel['[all]'])
-  # button with active status led
-  test_btn = Button(
-    a=test_row,
-    text='foo',
-  )
-  Div(
-    a=test_btn,
-    style='position: absolute;top: 2px;right: 2px;width: 5px;background-color: #00ff00;height: 5px;border-radius: 2.5px;'
-  )
-  # notify, position ['top-left', 'top', 'top-right', 'left', 'center', 'right', 'bottom-left', 'bottom', 'bottom-right']
-  test_btn.qnotify = QNotify(message='Test nofify', position='top', a=wp)
-  def test_btn_click(self, msg):
-    self.qnotify.notify = True
-    self.qnotify.caption = 'test caption'
-  test_btn.on('click', test_btn_click)
-  def test_btn_after(self, msg):
-    self.qnotify.notify = False
-  test_btn.on('after', test_btn_after)
+  if DEBUG:
+    test_row = Div(classes="row q-pa-sm q-gutter-sm", a=tab_panel['[all]'])
+    # button with active status led
+    test_btn = Button(
+      a=test_row,
+      text='foo',
+    )
+    Div(
+      a=test_btn,
+      style='position: absolute;top: 2px;right: 2px;width: 5px;background-color: #00ff00;height: 5px;border-radius: 2.5px;'
+    )
+    # notify, position ['top-left', 'top', 'top-right', 'left', 'center', 'right', 'bottom-left', 'bottom', 'bottom-right']
+    test_btn.qnotify = QNotify(message='Test nofify', position='top', a=wp)
+    def test_btn_click(self, msg):
+      self.qnotify.notify = True
+      self.qnotify.caption = 'test caption'
+    test_btn.on('click', test_btn_click)
+    def test_btn_after(self, msg):
+      self.qnotify.notify = False
+    test_btn.on('after', test_btn_after)
 
   return wp
 
@@ -845,7 +846,7 @@ def cli():
                       help="Specify the port to use (overwrites the value inside the config file, fallbacks to 8000)")
   parser.add_argument('-v', '--verbose', action="store_true", help="Verbose output")
   parser.add_argument('-D', '--debug', action='store_true', help=argparse.SUPPRESS)
-  parser.add_argument('-h', '--help', action='store_true', default=argparse.SUPPRESS,  # action help auto exits
+  parser.add_argument('-h', '--help', action='store_true',  # action help auto exits
                       help='Show this help message and exit')
   args = parser.parse_args()
 
