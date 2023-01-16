@@ -785,7 +785,16 @@ async def application(request):
         elif j['widget-class'] == 'VolumeGroup':
           VolumeGroup(vtype=j['type'], a=eval(var))
 
-  # Test
+  # TODO: change reference wp.components to ...
+  if not wp.components:
+    # config not found or empty, therefore insert an empty div to not get an error
+    Div(text="add elements in controldeck.conf", classes="flex flex-wrap", a=wp)
+
+  status = config.get('default', 'status', fallback='False').title() == 'True'
+  #if status:
+  #  wp.add(STATUS_DIV)
+
+  # TODO: Test
   test_row = Div(classes="row q-pa-sm q-gutter-sm", a=tab_panel['[all]'])
   # button with active status led
   test_btn = Button(
@@ -806,15 +815,6 @@ async def application(request):
     self.qnotify.notify = False
   test_btn.on('after', test_btn_after)
 
-  # TODO: change reference wp.components to ...
-  if not wp.components:
-    # config not found or empty, therefore insert an empty div to not get an error
-    Div(text="add elements in controldeck.conf", classes="flex flex-wrap", a=wp)
-
-  status = config.get('default', 'status', fallback='False').title() == 'True'
-  #if status:
-  #  wp.add(STATUS_DIV)
-
   return wp
 
 @SetRoute('/hello')
@@ -823,11 +823,7 @@ def hello_function():
   wp.add(P(text='Hello there!', classes='text-5xl m-2'))
   return wp
 
-def main(args):
-  config = config_load(args.config)
-  host = config.get('default', 'host', fallback='0.0.0.0')
-  port = config.get('default', 'port', fallback='8000')
-  
+def main(args, host, port):
   if not path.exists(STATIC_DIR):
     makedirs(STATIC_DIR, exist_ok=True)
   justpy(host=host, port=port, start_server=True)
@@ -836,13 +832,21 @@ def main(args):
 def cli():
   global DEBUG
   parser = argparse.ArgumentParser(
-    description=__doc__, prefix_chars='-',
-    formatter_class=argparse.RawTextHelpFormatter,
+    description=__doc__,
+    formatter_class=argparse.RawTextHelpFormatter,  # preserve formatting
+    prefix_chars='-',
+    add_help=False,     # custom help text
   )
   parser.add_argument('-c', '--config', nargs='?', type=str, default='',
                       help="Specify a path to a custom config file (default: ~/.config/controldeck/controldeck.conf)")
+  parser.add_argument('--host', type=str, default='',
+                      help="Specify the host to use (overwrites the value inside the config file, fallbacks to 127.0.0.1)")
+  parser.add_argument('--port', type=str, default='',
+                      help="Specify the port to use (overwrites the value inside the config file, fallbacks to 8000)")
   parser.add_argument('-v', '--verbose', action="store_true", help="Verbose output")
   parser.add_argument('-D', '--debug', action='store_true', help=argparse.SUPPRESS)
+  parser.add_argument('-h', '--help', action='store_true', default=argparse.SUPPRESS,  # action help auto exits
+                      help='Show this help message and exit')
   args = parser.parse_args()
 
   if args.debug:
@@ -850,11 +854,23 @@ def cli():
     print('[DEBUG] args:', args)
     print('[DEBUG] __file__:', __file__)
     print('[DEBUG] cwd:', getcwd())
-    print('[DEBUG] CONFIG_DIR:', CONFIG_DIR)
-    print('[DEBUG] CACHE_DIR:', CACHE_DIR)
-    print('[DEBUG] STATIC_DIR:', STATIC_DIR)
+    print('[DEBUG] CONFIG_DIR:', CONFIG_DIR, "exists", path.exists(CONFIG_DIR))
+    print('[DEBUG] CACHE_DIR:', CACHE_DIR, "exists", path.exists(CACHE_DIR))
+    print('[DEBUG] STATIC_DIR:', STATIC_DIR, "exists", path.exists(STATIC_DIR))
 
-  main(args)
+  config = config_load(args.config)
+  host = args.host if args.host else config.get('default', 'host', fallback='127.0.0.1')
+  port = args.port if args.port else config.get('default', 'port', fallback='8000')
+
+  if args.debug:
+    print('[DEBUG] host:', host)
+    print('[DEBUG] port:', port)
+
+  if args.help:
+    parser.print_help()
+    exit(0)
+
+  main(args, host, port)
 
   return 0
 
