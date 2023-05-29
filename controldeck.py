@@ -14,6 +14,7 @@ from configparser import ConfigParser
 import re
 import json
 import time
+import datetime
 import argparse
 from addict import Dict  # also used in justpy
 
@@ -33,6 +34,10 @@ STATIC_DIR = path.join(CACHE_DIR, 'static')
 # NEEDS to be done before loading justpy 
 import jpcore.justpy_config
 jpcore.justpy_config.STATIC_DIRECTORY = STATIC_DIR
+#import jpcore.jpconfig
+#jpcore.jpconfig.VERBOSE = False
+# see output "if jpconfig.VERBOSE:" in https://github.com/justpy-org/justpy/blob/master/justpy/justpy.py
+# can be set in justpy.env
 
 from justpy import (
   Div,
@@ -175,6 +180,9 @@ class Button(QBtn):
         def click(self, msg):
           self.update_state()
           if self.command != '':
+            print()
+            print(datetime.datetime.now())
+            print(self.command)
             process(self.command, shell=True, output=False)  # output=True freezes controldeck until process finished (until e.g. an emacs button is closed)
         self.on('click', click)
 
