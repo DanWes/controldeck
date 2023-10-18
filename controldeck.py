@@ -52,6 +52,7 @@ from justpy import (
   QCard,
   QCardSection,
   QDialog,
+  QDiv,
   QEditor,
   QHeader,
   QIcon,
@@ -126,12 +127,50 @@ def config_load(conf=''):
   #print(config.sections())
   return config
 
+# TODO: colors definable in config
+class Label(QDiv):
+  """
+  Args:
+    **kwargs:
+      - wtype: if 'empty' then: empty slot, for horizontal arrangement, text is
+        ignored, no bg color etc.
+  """
+  def __init__(self, **kwargs):
+    super().__init__(**kwargs)
+    self.style = "width: 90px;"
+    self.style += "min-height: 70px;"
+    if self.wtype != 'empty':
+      self.classes = f"q-pa-sm text-blue-grey-4 text-bold text-center bg-light-blue-10"
+      #self.style += "font-size: 14px;"
+      self.style += "line-height: 1em;"
+      self.style += "border-radius: 7px;"
+      self.text = self.text.upper()
+    #print()
+    #print(self)
+
+# TODO: distinguish between non-command and comand inactive stage?
 class Button(QBtn):
   """
-  usage
-    Button(text, text_alt, btype, command, command_alt,
+  Args:
+    **kwargs:
+      - text: button text in normal state (unpressed)
+      - text_alt: button text in active state (pressed)
+      - wtype: 'button' (any string atm) for a button
+      - command: command to execute on click
+      - command_alt: command to execute on click in active state
+      - color_bg: background color
+      - color_fg: foreground color
+      - state_pattern: string defining the normal state (unpressed) [NEDDED?]
+      - state_pattern_alt: string defining the alternative state
+        (active, pressed)
+      - state_command: command to execute to compare with state_pattern*
+      - icon: icon in normal state (unpressed)
+      - icon_alt: icon in active state
+  
+  Usage:
+    Button(text, text_alt, wtype, command, command_alt,
            color_bg=, color_fg=, state_pattern, state_pattern_alt,
-           state_command, state_command_alt,
+           state_command,
            icon, icon_alt, image, image_alt,
            a)
   """
@@ -140,55 +179,72 @@ class Button(QBtn):
     # self.outline = True         # is set via style, see below
     # self.color = "blue-grey-8"  # is overwritten via text_color
     self.text_color = COLOR_PRIME_TEXT
-    self.size = 'md'
+    self.size = 'md'              # button / font size
     self.push = True
     # self.padding = 'none'       # not working, also not inside init
     self.dense = True
 
     # default **kwargs
-    self.btype = None             # button or empty
+    self.wtype = None             # button or empty
     self.image = ''               # used for files like svg and png
     self.command = ''             # command to run on click
     self.state = ''               # output of the state check command
     self.state_command = ''       # command to check the unclicked state
     super().__init__(**kwargs)
+
     self.style = "width: 90px;"
-    self.style += "min-height: 70px;"
+    self.style += "min-height: 77px;"   # image + 2 text lines
+    self.style += "border: 1px solid #455a64;"  # #455a64 blue-grey-8
+    self.style += "line-height: 1em;"
 
-    if self.btype == 'empty':
-      self.classes = 'invisible'  # invisible; not shown but still stakes up space
-    else:
-      self.style += "border: 1px solid #455a64;"  # #455a64 blue-grey-8
+    if self.image and path.exists(self.image):
+      # copy image files into the static folder
+      basename = path.basename(self.image)
+      staticfile = path.join(STATIC_DIR, basename)
+      if not path.exists(staticfile):
+        shutil.copy2(self.image, staticfile)
+        if DEBUG:
+          print(f'[DEBUG] copy {self.image} to {staticfile}')
+      self.icon = f"img:/static/{basename}"
+      # <q-icon name="img:data:image/svg+xml;charset=utf8,<svg xmlns='http://www.w3.org/2000/svg' height='140' width='500'><ellipse cx='200' cy='80' rx='100' ry='50' style='fill:yellow;stroke:purple;stroke-width:2' /></svg>" />
+      # <q-btn icon="img:data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==" ... />
 
-      self.style += "width: 90px;"
-      self.style += "min-height: 77px;"   # image + 2 text lines
-      self.style += "line-height: 1em;"
-      if self.image and path.exists(self.image):
-        # copy image files into the static folder
-        basename = path.basename(self.image)
-        staticfile = path.join(STATIC_DIR, basename)
-        if not path.exists(staticfile):
-          shutil.copy2(self.image, staticfile)
-          if DEBUG:
-            print(f'[DEBUG] copy {self.image} to {staticfile}')
-        self.icon = f"img:/static/{basename}"
-        # <q-icon name="img:data:image/svg+xml;charset=utf8,<svg xmlns='http://www.w3.org/2000/svg' height='140' width='500'><ellipse cx='200' cy='80' rx='100' ry='50' style='fill:yellow;stroke:purple;stroke-width:2' /></svg>" />
-        # <q-btn icon="img:data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==" ... />
-
-      if self.command != '':
-        QTooltip(a=self, text=self.command.strip(), delay=500) # setting style white-space:pre does not work, see wp.css below
-        def click(self, msg):
+    if self.command != '':
+      self.update_state()
+      tt = f"command: {self.command.strip()}"
+      if self.state_command:
+        tt += f"\nstate: {self.state}"
+      QTooltip(a=self, text=tt, delay=500) # setting style white-space:pre does not work, see wp.css below
+      def click(self, msg):
+        if self.command != '':
           self.update_state()
-          if self.command != '':
+          if DEBUG:
             print()
             print(datetime.datetime.now())
-            print(self.command)
-            process(self.command, shell=True, output=False)  # output=True freezes controldeck until process finished (until e.g. an emacs button is closed)
-        self.on('click', click)
+            print(f"command: {self.command}")
+          process(self.command, shell=True, output=False)  # output=True freezes controldeck until process finished (until e.g. an emacs button is closed)
+      self.on('click', click)
+
+  def is_state_alt(self):
+    return self.state == self.state_pattern_alt
 
   def update_state(self):
     if self.state_command != '':
       self.state = process(self.state_command, shell=True)
+      if DEBUG:
+        print()
+        print(datetime.datetime.now())
+        print("update btn state")
+        print(f"text: {self.text}")
+        print(f"state (before click): {self.state}")
+        print(f"state_command: {self.state_command}")
+        print(f"state_pattern: {self.state_pattern}")
+        print(f"state_pattern_alt: {self.state_pattern_alt}")
+        print(f"is_state_alt: {self.is_state_alt()}")
+      if self.is_state_alt():
+        # self.style += "border: 1px solid green;"
+        self.style += "border-bottom: 1px solid green;"
+        
 
 class Volume(Div):
   # class variables
@@ -202,7 +258,7 @@ class Volume(Div):
     self.slider = None        # for handle methods to access slider
 
     # default **kwargs
-    self.vtype = 'sink'       # sink (loudspeaker) or sink-input (app output)
+    self.wtype = 'sink'       # sink (loudspeaker) or sink-input (app output)
     self.name = ''            # pulseaudio sink name
     self.description = ''     # badge name
 
@@ -211,10 +267,10 @@ class Volume(Div):
     self.update_state()       # get self.pa_state
 
     if self.pa_state:
-      if self.vtype == 'sink':
+      if self.wtype == 'sink':
         cmdl_toggle = 'pactl set-sink-mute {name} toggle'
         cmdl_value = 'pactl set-sink-volume {name} {value}%'
-      elif self.vtype == 'sink-input':
+      elif self.wtype == 'sink-input':
         cmdl_toggle = 'pactl set-sink-input-mute {name} toggle'
         cmdl_value = 'pactl set-sink-input-volume {name} {value}%'
         app_name = self.pa_state['properties']['application.process.binary'] if 'application.process.binary' in self.pa_state['properties'] else ''
@@ -333,11 +389,11 @@ class Volume(Div):
     self.update_states()
     tmp = []
     # filter for the given pa name, empty list if not found
-    if self.vtype == 'sink':
+    if self.wtype == 'sink':
       # match pa name with self.name
       tmp = list(filter(lambda item: item['name'] == self.name,
                         Volume.data['sinks']))
-    elif self.vtype == 'sink-input':
+    elif self.wtype == 'sink-input':
       # match pa index with self.name
       try:  # for int casting
         tmp = list(filter(lambda item: item['index'] == int(self.name),
@@ -354,7 +410,7 @@ class VolumeGroup():
     a = kwargs.pop('a', None)  # add Volume widgets to the specified component
     Volume.update_states()
     for i in Volume.data['sink-inputs']:
-      Volume(a=a, name=i['index'], vtype='sink-input')
+      Volume(a=a, name=i['index'], wtype='sink-input')
 
 async def reload(self, msg):
   await msg.page.reload()
@@ -390,7 +446,7 @@ def widget_load(config) -> dict:
     iname = None
     #iname = re.search(r"^([0-9]*:?)([0-9]*\.?)(button|empty)", i, flags=re.IGNORECASE)
     iname = re.search(
-      r"^([0-9a-z]*:)?([0-9]*\.)?(button|empty|sink-inputs|sink|source)",  # sink-inputs BEFORE sink
+      r"^([0-9a-z]*:)?([0-9]*\.)?(empty|label|button|sink-inputs|sink|source)",  # sink-inputs BEFORE sink!
       i, flags=re.IGNORECASE)
     if iname is not None:
       tab_name = iname.group(1)[:-1] if iname.group(1) is not None else ''  # remove collon, id is '' if nothing is given
@@ -403,7 +459,14 @@ def widget_load(config) -> dict:
       # print('wid_type', wid_type)
       # print('wid_name', wid_name)
       # print('')
-      if wid_type in ['button', 'empty']:
+      if wid_type == 'empty':
+        args = [{'widget-class': 'Empty',
+                 'type': wid_type}]
+      if wid_type == 'label':
+        args = [{'widget-class': 'Label',
+                 'type': wid_type,
+                 'text': wid_name}]
+      elif wid_type == 'button':
         # button or empty
         args = [{'widget-class': 'Button',
                  'type': wid_type,
@@ -416,7 +479,6 @@ def widget_load(config) -> dict:
                  'state': config.get(i, 'state', fallback=''),
                  'state-alt': config.get(i, 'state-alt', fallback=''),
                  'state-command': config.get(i, 'state-command', fallback=''),
-                 'state-command-alt': config.get(i, 'state-command-alt', fallback=''),
                  'icon': config.get(i, 'icon', fallback=''),
                  'icon-alt': config.get(i, 'icon-alt', fallback=''),
                  'image': config.get(i, 'image', fallback=''),
@@ -776,22 +838,30 @@ async def application(request):
             name=var,
             classes="row q-pa-sm q-gutter-sm",
             a=tab_panel[tab_name])
+        if j['widget-class'] == 'Empty':
+          Label(text='',
+                wtype=j['type'],
+                a=eval(var))
+        if j['widget-class'] == 'Label':
+          Label(text=j['text'],
+                wtype=j['type'],
+                a=eval(var))
         if j['widget-class'] == 'Button':
           Button(text=j['text'], text_alt=j['text-alt'],
-                 btype=j['type'],
+                 wtype=j['type'],
                  command=j['command'], command_alt=j['command-alt'],
                  color_bg=j['color-bg'], color_fg=j['color-fg'],
                  state_pattern=j['state'], state_pattern_alt=j['state-alt'],
-                 state_command=j['state-command'], state_command_alt=j['state-command-alt'],
+                 state_command=j['state-command'],
                  icon=j['icon'], icon_alt=j['icon-alt'],
                  image=j['image'], image_alt=j['image-alt'],
                  a=eval(var))
         elif j['widget-class'] == 'Volume':
           Volume(name=j['name'], description=j['description'],
-                 vtype=j['type'],
+                 wtype=j['type'],
                  a=eval(var))
         elif j['widget-class'] == 'VolumeGroup':
-          VolumeGroup(vtype=j['type'], a=eval(var))
+          VolumeGroup(wtype=j['type'], a=eval(var))
 
   # TODO: change reference wp.components to ...
   if not wp.components:
