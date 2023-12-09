@@ -31,15 +31,19 @@ CACHE_DIR = path.join(path.expanduser('~'), '.cache', APP_NAME.lower())
 STATIC_DIR = path.join(CACHE_DIR, 'static')
 
 # justpy config overwrite
-# NEEDS to be done before loading justpy 
-import jpcore.justpy_config
-jpcore.justpy_config.STATIC_DIRECTORY = STATIC_DIR
-#import jpcore.jpconfig
-#jpcore.jpconfig.VERBOSE = False
-# see output "if jpconfig.VERBOSE:" in https://github.com/justpy-org/justpy/blob/master/justpy/justpy.py
-# can be set in justpy.env
+# NEEDS to be done before loading justpy
+import jpcore.jpconfig
+jpcore.jpconfig.STATIC_DIRECTORY = STATIC_DIR
+# justpy/justpy.py
+# import jpcore.jpconfig as jpconfig
+# app = JustpyApp(middleware=middleware, debug=jpconfig.DEBUG)
+# app.mount(jpconfig.STATIC_ROUTE, StaticFiles(directory=jpconfig.STATIC_DIRECTORY), name=jpconfig.STATIC_NAME)
+# app.mount(
+#     "/templates", StaticFiles(directory=current_dir + "/templates"), name="templates"
+# )
 
 from justpy import (
+  app,
   Div,
   I,
   P,
@@ -189,6 +193,7 @@ class Button(QBtn):
     # default **kwargs
     self.wtype = None             # button or empty
     self.image = ''               # used for files like svg and png
+                                  # e.g. /usr/share/icons/breeze-dark/actions/24/media-playback-stop.svg
     self.command = ''             # command to run on click
     self.state = ''               # output of the state check command
     self.state_command = ''       # command to check the unclicked state
@@ -199,17 +204,25 @@ class Button(QBtn):
     self.style += "border: 1px solid var(--c-blue-grey-8);"  # #455a64 blue-grey-8
     self.style += "line-height: 1em;"
 
+    # if DEBUG:
+    #   print(f'[DEBUG] button: {self.text}; image: {self.image}; exists: {path.exists(self.image)}')
     if self.image and path.exists(self.image):
       # copy image files into the static folder
       basename = path.basename(self.image)
+        # e.g. media-playback-stop.svg
       staticfile = path.join(STATIC_DIR, basename)
+        # e.g. <user-home>/.cache/controldeck/static/media-playback-stop.svg
       if not path.exists(staticfile):
         shutil.copy2(self.image, staticfile)
         if DEBUG:
           print(f'[DEBUG] copy {self.image} to {staticfile}')
       self.icon = f"img:/static/{basename}"
+        # e.g. img:/static/media-playback-stop.svg
       # <q-icon name="img:data:image/svg+xml;charset=utf8,<svg xmlns='http://www.w3.org/2000/svg' height='140' width='500'><ellipse cx='200' cy='80' rx='100' ry='50' style='fill:yellow;stroke:purple;stroke-width:2' /></svg>" />
       # <q-btn icon="img:data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==" ... />
+      # if DEBUG:
+      #   print(f'[DEBUG] button: {self.text}; icon: {staticfile}; exists: {path.exists(self.image)}')
+      #   print(f'[DEBUG] button: {self.text}; icon: {self.icon}')
 
     if self.command != '':
       self.update_state()
@@ -221,9 +234,7 @@ class Button(QBtn):
         if self.command != '':
           self.update_state()
           if DEBUG:
-            print()
-            print(datetime.datetime.now())
-            print(f"command: {self.command}")
+            print(f"[btn] command: {self.command}")
           process(self.command, shell=True, output=False)  # output=True freezes controldeck until process finished (until e.g. an emacs button is closed)
       self.on('click', click)
 
@@ -234,15 +245,13 @@ class Button(QBtn):
     if self.state_command != '':
       self.state = process(self.state_command, shell=True)
       if DEBUG:
-        print()
-        print(datetime.datetime.now())
-        print("update btn state")
-        print(f"text: {self.text}")
-        print(f"state (before click): {self.state}")
-        print(f"state_command: {self.state_command}")
-        print(f"state_pattern: {self.state_pattern}")
-        print(f"state_pattern_alt: {self.state_pattern_alt}")
-        print(f"is_state_alt: {self.is_state_alt()}")
+        print("[btn] update btn state")
+        print(f"[btn] text: {self.text}")
+        print(f"[btn] state (before click): {self.state}")
+        print(f"[btn] state_command: {self.state_command}")
+        print(f"[btn] state_pattern: {self.state_pattern}")
+        print(f"[btn] state_pattern_alt: {self.state_pattern_alt}")
+        print(f"[btn] is_state_alt: {self.is_state_alt()}")
       if self.is_state_alt():
         # self.style += "border: 1px solid green;"
         # self.style += "border-bottom: 1px solid green;"
@@ -949,6 +958,10 @@ def cli():
     print('[DEBUG] CONFIG_DIR:', CONFIG_DIR, "exists", path.exists(CONFIG_DIR))
     print('[DEBUG] CACHE_DIR:', CACHE_DIR, "exists", path.exists(CACHE_DIR))
     print('[DEBUG] STATIC_DIR:', STATIC_DIR, "exists", path.exists(STATIC_DIR))
+    import starlette.routing
+    mounts = [i for i in app.routes if type(i) == starlette.routing.Mount]
+    mounts = [{'path': i.path, 'name': i.name, 'directory': i.app.directory} for i in mounts]
+    print(f"[DEBUG] app mounts: {mounts}")
 
   config = config_load(args.config)
   host = args.host if args.host else config.get('default', 'host', fallback='127.0.0.1')
