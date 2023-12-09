@@ -7,7 +7,7 @@ After=network.target
 Environment=PYTHONUNBUFFERED=1
 TimeoutStartSec=30
 ExecStartPre=/bin/sh -c 'source /etc/profile'
-ExecStart=%h/.local/bin/controldeck
+ExecStart=%h/.local/bin/controldeck -D
 Restart=on-failure
 RestartSec=4
 StandardOutput=journal

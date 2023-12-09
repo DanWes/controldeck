@@ -140,10 +140,12 @@ class Label(QDiv):
     self.style = "width: 90px;"
     self.style += "min-height: 70px;"
     if self.wtype != 'empty':
-      self.classes = f"q-pa-sm text-blue-grey-4 text-bold text-center bg-light-blue-10"
+      self.classes = f"q-pa-sm text-blue-grey-5 text-bold text-center bg-blue-grey-10"
+      # bg-light-blue-10
       #self.style += "font-size: 14px;"
       self.style += "line-height: 1em;"
-      self.style += "border-radius: 7px;"
+      #self.style += "border-radius: 7px;"
+      self.classes += " q-btn--push"  # border-radius: 7px;
       self.text = self.text.upper()
     #print()
     #print(self)
@@ -194,7 +196,7 @@ class Button(QBtn):
 
     self.style = "width: 90px;"
     self.style += "min-height: 77px;"   # image + 2 text lines
-    self.style += "border: 1px solid #455a64;"  # #455a64 blue-grey-8
+    self.style += "border: 1px solid var(--c-blue-grey-8);"  # #455a64 blue-grey-8
     self.style += "line-height: 1em;"
 
     if self.image and path.exists(self.image):
@@ -243,8 +245,10 @@ class Button(QBtn):
         print(f"is_state_alt: {self.is_state_alt()}")
       if self.is_state_alt():
         # self.style += "border: 1px solid green;"
-        self.style += "border-bottom: 1px solid green;"
-        
+        # self.style += "border-bottom: 1px solid green;"
+        self.style += "border: 1px solid var(--c-light-blue-9);"
+        # self.style += "border-bottom: 1px solid var(--c-light-blue);"
+
 
 class Volume(Div):
   # class variables
@@ -572,6 +576,15 @@ async def application(request):
 
     .q-tooltip {
       white-space: pre;
+    }
+
+    /* COLORS */
+    :root {
+      --c-blue-grey-8: #455a64;  /* blue-grey-8 */
+      --c-light-blue-9: #0277bd;  /* light-blue-9 */
+    }
+    .border-c-blue-grey-8 {
+      border: 1px solid var(--c-blue-grey-8) !important;
     }
   """
 
