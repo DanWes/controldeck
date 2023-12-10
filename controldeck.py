@@ -300,7 +300,11 @@ class Volume(Div):
       volume_level = 0
       if self.pa_state:  # might be empty {} if it is not found
         # pulseaudio 2^16 (65536) volume levels
-        volume_level = float(self.pa_state['volume']['front-left']['value_percent'][:-1])  # remove the % sign
+        if 'front-left' in self.pa_state['volume']:
+          volume_level = float(self.pa_state['volume']['front-left']['value_percent'][:-1])  # remove the % sign
+        elif 'mono' in self.pa_state['volume']:
+          volume_level = float(self.pa_state['volume']['mono']['value_percent'][:-1])  # remove the % sign
+        # TODO: ? indicator if stream is stereo or mono ?
 
       badge = QBadge(
         text=badge_name,

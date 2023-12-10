@@ -6,7 +6,7 @@ After=network.target
 [Service]
 Environment=PYTHONUNBUFFERED=1
 TimeoutStartSec=30
-ExecStartPre=/bin/sh -c 'source /etc/profile'
+#ExecStartPre=/bin/sh -c 'source /etc/profile'
 ExecStart=%h/.local/bin/controldeck -D
 Restart=on-failure
 RestartSec=4
