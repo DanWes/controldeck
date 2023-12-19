@@ -259,6 +259,69 @@ class Button(QBtn):
         # self.style += "border-bottom: 1px solid var(--c-light-blue);"
 
 
+class Slider(Div):
+  def __init__(self, **kwargs):
+    # instance vars
+    self.slider = None        # for handle methods to access slider
+    self.toggled = False
+
+    # default **kwargs
+    self.wtype = 'slider'     # slider (atm the only option)
+    self.name = ''            # id name
+    self.description = ''     # badge name
+
+    super().__init__(**kwargs)
+    self.style = "width:286px;"  # three buttons and the two spaces
+
+    self.cmdl_toggle = ''     # cmd for the button left
+    self.cmdl_value = ''      # cmd for the slider value
+
+    # local vars
+    badge_name = self.description if self.description else self.name
+    value = 0
+
+    badge = QBadge(
+      text=badge_name,
+      outline=True,
+      color=COLOR_PRIME_TEXT,
+      style="max-width:286px;",  # 3*90 + 2*8
+      classes="ellipsis",
+      a=self,
+    )
+    tt = QTooltip(
+      a=badge, text=badge_name, delay=500, anchor='center left',
+      offset=[0, 14], transition_show='jump-right', transition_hide='jump-left')
+    tt.self='center left'
+    item = QItem(
+      a=self,
+      dense=True,  # dense: less spacing: vertical little higher
+    )
+    item_section = QItemSection(
+      side=True,     # side=True unstreched btn
+      a=item,
+    )
+
+    item_section2 = QItemSection(a=item)
+    def handle_slider(widget_self, msg):
+      # process(cmdl_value.format(name=self.name,value=msg.value), shell=True, output=False)
+      pass
+    self.slider = QSlider(
+      value=value,
+      min=0,
+      max=100,
+      step=5,
+      label=True,
+      a=item_section2,
+      input=handle_slider,
+      color=COLOR_SELECT,
+      style="opacity: 0.6 !important;" if self.is_toggled() else "opacity: unset !important;",
+    )
+
+  # TODO: toggle?
+  def is_toggled(self):
+    self.toggled = not self.toggled
+    return self.toggled
+
 class Volume(Div):
   # class variables
   data = {}                   # pulseaudio info for all sinks
@@ -463,7 +526,7 @@ def widget_load(config) -> dict:
     iname = None
     #iname = re.search(r"^([0-9]*:?)([0-9]*\.?)(button|empty)", i, flags=re.IGNORECASE)
     iname = re.search(
-      r"^([0-9a-z]*:)?([0-9]*\.)?(empty|label|button|sink-inputs|sink|source)",  # sink-inputs BEFORE sink!
+      r"^([0-9a-z]*:)?([0-9]*\.)?(empty|label|button|slider|sink-inputs|sink|source)",  # sink-inputs BEFORE sink!
       i, flags=re.IGNORECASE)
     if iname is not None:
       tab_name = iname.group(1)[:-1] if iname.group(1) is not None else ''  # remove collon, id is '' if nothing is given
@@ -477,15 +540,16 @@ def widget_load(config) -> dict:
       # print('wid_name', wid_name)
       # print('')
       if wid_type == 'empty':
+        # TODO: empty using label class, like an alias?
         args = [{'widget-class': 'Empty',
                  'type': wid_type}]
       if wid_type == 'label':
-        args = [{'widget-class': 'Label',
+        args = [{'widget-class': Label,
                  'type': wid_type,
                  'text': wid_name}]
       elif wid_type == 'button':
         # button or empty
-        args = [{'widget-class': 'Button',
+        args = [{'widget-class': Button,
                  'type': wid_type,
                  'text': wid_name,
                  'text-alt': config.get(i, 'text-alt', fallback=''),
@@ -500,16 +564,23 @@ def widget_load(config) -> dict:
                  'icon-alt': config.get(i, 'icon-alt', fallback=''),
                  'image': config.get(i, 'image', fallback=''),
                  'image-alt': config.get(i, 'image-alt', fallback='')}]
+      elif wid_type == 'slider':
+        # sliders
+        args = [{'widget-class': Slider,
+                 'type': wid_type,
+                 'name': wid_name,
+                 'description': config.get(i, 'description', fallback=''),
+                 }]
       elif wid_type == 'sink':
         # volume sliders
-        args = [{'widget-class': 'Volume',
+        args = [{'widget-class': Volume,
                  'type': wid_type,
                  'name': wid_name,
                  'description': config.get(i, 'description', fallback=''),
                  }]
       elif wid_type == 'sink-inputs':
         # multiple volume sliders
-        args = [{'widget-class': 'VolumeGroup',
+        args = [{'widget-class': VolumeGroup,
                  'type': wid_type,
                  }]
       if tab_name not in widget_dict:
@@ -864,30 +935,39 @@ async def application(request):
             name=var,
             classes="row q-pa-sm q-gutter-sm",
             a=tab_panel[tab_name])
+        # TODO: empty using label class, like an alias?
         if j['widget-class'] == 'Empty':
           Label(text='',
                 wtype=j['type'],
                 a=eval(var))
-        if j['widget-class'] == 'Label':
-          Label(text=j['text'],
-                wtype=j['type'],
-                a=eval(var))
-        if j['widget-class'] == 'Button':
-          Button(text=j['text'], text_alt=j['text-alt'],
-                 wtype=j['type'],
-                 command=j['command'], command_alt=j['command-alt'],
-                 color_bg=j['color-bg'], color_fg=j['color-fg'],
-                 state_pattern=j['state'], state_pattern_alt=j['state-alt'],
-                 state_command=j['state-command'],
-                 icon=j['icon'], icon_alt=j['icon-alt'],
-                 image=j['image'], image_alt=j['image-alt'],
-                 a=eval(var))
-        elif j['widget-class'] == 'Volume':
-          Volume(name=j['name'], description=j['description'],
-                 wtype=j['type'],
-                 a=eval(var))
-        elif j['widget-class'] == 'VolumeGroup':
-          VolumeGroup(wtype=j['type'], a=eval(var))
+        if j['widget-class'] == Label:
+          j['widget-class'](
+            text=j['text'],
+            wtype=j['type'],
+            a=eval(var))
+        if j['widget-class'] == Button:
+          j['widget-class'](
+            text=j['text'], text_alt=j['text-alt'],
+            wtype=j['type'],
+            command=j['command'], command_alt=j['command-alt'],
+            color_bg=j['color-bg'], color_fg=j['color-fg'],
+            state_pattern=j['state'], state_pattern_alt=j['state-alt'],
+            state_command=j['state-command'],
+            icon=j['icon'], icon_alt=j['icon-alt'],
+            image=j['image'], image_alt=j['image-alt'],
+            a=eval(var))
+        elif j['widget-class'] == Slider:
+          j['widget-class'](
+            name=j['name'], description=j['description'],
+            wtype=j['type'],
+            a=eval(var))
+        elif j['widget-class'] == Volume:
+          j['widget-class'](
+            name=j['name'], description=j['description'],
+            wtype=j['type'],
+            a=eval(var))
+        elif j['widget-class'] == VolumeGroup:
+          j['widget-class'](wtype=j['type'], a=eval(var))
 
   # TODO: change reference wp.components to ...
   if not wp.components:
