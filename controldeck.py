@@ -31,16 +31,12 @@ CACHE_DIR = path.join(path.expanduser('~'), '.cache', APP_NAME.lower())
 STATIC_DIR = path.join(CACHE_DIR, 'static')
 
 # justpy config overwrite
-# NEEDS to be done before loading justpy
+# NEEDS to be done BEFORE loading justpy but AFTER jpcore.justpy_config.JpConfig
+# jpcore.justpy_config.JpConfig loads defaults into jpcore.jpconfig
+# justpy creates app mounts
+from jpcore.justpy_config import JpConfig
 import jpcore.jpconfig
 jpcore.jpconfig.STATIC_DIRECTORY = STATIC_DIR
-# justpy/justpy.py
-# import jpcore.jpconfig as jpconfig
-# app = JustpyApp(middleware=middleware, debug=jpconfig.DEBUG)
-# app.mount(jpconfig.STATIC_ROUTE, StaticFiles(directory=jpconfig.STATIC_DIRECTORY), name=jpconfig.STATIC_NAME)
-# app.mount(
-#     "/templates", StaticFiles(directory=current_dir + "/templates"), name="templates"
-# )
 
 from justpy import (
   app,
