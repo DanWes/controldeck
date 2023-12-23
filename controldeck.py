@@ -277,8 +277,14 @@ class Slider(Div):
     self.wtype = 'slider'     # slider (atm the only option)
     self.name = ''            # id name
     self.description = ''     # badge name
+    self.command = ''         # command to run on click
+    self.state_command = ''   # command to check the current state
 
+    self.min = float(kwargs.pop('min', 0))
+    self.max = float(kwargs.pop('max', 100))
+    self.step = float(kwargs.pop('step', 1))
     super().__init__(**kwargs)
+    self.icon = self.icon if self.icon else 'tune'
     self.style = "width:286px;"  # three buttons and the two spaces
 
     self.cmdl_toggle = ''     # cmd for the button left
@@ -286,8 +292,11 @@ class Slider(Div):
 
     # local vars
     badge_name = self.description if self.description else self.name
-    value = 0
+    value = self.min
+    if self.state_command:
+      value = float(process(self.state_command, shell=True))
 
+    # 1st row; badge
     badge = QBadge(
       text=badge_name,
       outline=True,
@@ -300,24 +309,40 @@ class Slider(Div):
       a=badge, text=badge_name, delay=500, anchor='center left',
       offset=[0, 14], transition_show='jump-right', transition_hide='jump-left')
     tt.self='center left'
+
+    # 2nd row; icon and slider
     item = QItem(
       a=self,
       dense=True,  # dense: less spacing: vertical little higher
     )
+
+    # left icon
     item_section = QItemSection(
       side=True,     # side=True unstreched btn
       a=item,
     )
+    QIcon(
+      name=self.icon,
+      color=COLOR_PRIME_TEXT,
+      left=True,
+      a=item_section,
+    )
 
+    # right slider
     item_section2 = QItemSection(a=item)
     def handle_slider(widget_self, msg):
-      # process(cmdl_value.format(name=self.name,value=msg.value), shell=True, output=False)
-      pass
+      if '{value}' in self.command:
+        if DEBUG:
+          print("[sld] command:", self.command.format(value=msg.value))
+        process(self.command.format(value=msg.value), shell=True, output=False)
+      else:
+        if DEBUG:
+          print("[sld] command:", self.command)
     self.slider = QSlider(
       value=value,
-      min=0,
-      max=100,
-      step=5,
+      min=self.min,
+      max=self.max,
+      step=self.step,
       label=True,
       a=item_section2,
       input=handle_slider,
@@ -327,7 +352,7 @@ class Slider(Div):
 
   # TODO: toggle?
   def is_toggled(self):
-    self.toggled = not self.toggled
+    # self.toggled = not self.toggled
     return self.toggled
 
 class Volume(Div):
@@ -382,6 +407,7 @@ class Volume(Div):
           volume_level = float(self.pa_state['volume']['mono']['value_percent'][:-1])  # remove the % sign
         # TODO: ? indicator if stream is stereo or mono ?
 
+      # 1st row; badge
       badge = QBadge(
         text=badge_name,
         outline=True,
@@ -394,16 +420,19 @@ class Volume(Div):
         a=badge, text=badge_name, delay=500, anchor='center left',
         offset=[0, 14], transition_show='jump-right', transition_hide='jump-left')
       tt.self='center left'
+
+      # 2nd row; icon and slider
       item = QItem(
         a=self,
         dense=True,  # dense: less spacing: vertical little higher
       )
+
+      # left icon
       item_section = QItemSection(
         side=True,     # side=True unstreched btn,
         #avatar=True,  # more spacing than side
         a=item,
       )
-      # QIcon(name="volume_up", a=item_section)
       def handle_btn(widget_self, msg):
         # not checking the current state
         process(cmdl_toggle.format(name=self.name), shell=True, output=False)
@@ -424,6 +453,8 @@ class Volume(Div):
         color=COLOR_PRIME_TEXT,
         click=handle_btn,
       )
+
+      # right slider
       item_section2 = QItemSection(a=item)
       def handle_slider(widget_self, msg):
         process(cmdl_value.format(name=self.name,value=msg.value), shell=True, output=False)
@@ -597,6 +628,12 @@ def widget_load(config) -> dict:
                  'type': wid_type,
                  'name': wid_name,
                  'description': config.get(i, 'description', fallback=''),
+                 'icon': config.get(i, 'icon', fallback=''),
+                 'command': config.get(i, 'command', fallback=''),
+                 'state-command': config.get(i, 'state-command', fallback=''),
+                 'min': config.get(i, 'min', fallback=''),
+                 'max': config.get(i, 'max', fallback=''),
+                 'step': config.get(i, 'step', fallback=''),
                  }]
       elif wid_type == 'sink':
         # volume sliders
@@ -994,6 +1031,9 @@ async def application(request):
           j['widget-class'](
             name=j['name'], description=j['description'],
             wtype=j['type'],
+            icon=j['icon'],
+            command=j['command'], state_command=j['state-command'],
+            min=j['min'], max=j['max'], step=j['step'],
             a=eval(var))
         elif j['widget-class'] == Volume:
           j['widget-class'](
