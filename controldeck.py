@@ -354,7 +354,7 @@ class Volume(Div):
       if self.wtype == 'sink':
         cmdl_toggle = 'pactl set-sink-mute {name} toggle'
         cmdl_value = 'pactl set-sink-volume {name} {value}%'
-      if self.wtype == 'source':
+      elif self.wtype == 'source':
         cmdl_toggle = 'pactl set-source-mute {name} toggle'
         cmdl_value = 'pactl set-source-volume {name} {value}%'
         self.icon_muted = 'mic_none'  # default icon for muted state, 'mic_off' better for disabled?
@@ -466,13 +466,23 @@ class Volume(Div):
         print("'pactl -f json list sinks' returns: '", sinks, "'")
         # fill (initialize) key 'sinks' and 'sink-inputs' to empty list so not enter KeyError
         cls.data['sinks'] = []
+        cls.data['sources'] = []
         cls.data['sink-inputs'] = []
       else:
         cls.data['sinks'] = json.loads(sinks)
 
+        # only do additionals if sink was working
+
+        sources = process('pactl -f json list sources', shell=True, stderr=None)
+        if 'failure' in sources:
+          print("'pactl -f json list sources' returns: '", sources, "'")
+          cls.data['sources'] = []
+        else:
+          cls.data['sources'] = json.loads(sources)
+
         sink_inputs = process('pactl -f json list sink-inputs', shell=True, stderr=None)  # stderr might have e.g.: Invalid non-ASCII character: 0xffffffc3
-        if 'failure' in sinks:
-          print("'pactl -f json list sink-inputs' returns", sink_inputs)
+        if 'failure' in sink_inputs:
+          print("'pactl -f json list sink-inputs' returns: '", sink_inputs, "'")
           cls.data['sink-inputs'] = []
         else:
           cls.data['sink-inputs'] = json.loads(sink_inputs)
@@ -486,6 +496,10 @@ class Volume(Div):
       # match pa name with self.name
       tmp = list(filter(lambda item: item['name'] == self.name,
                         Volume.data['sinks']))
+    elif self.wtype == 'source':
+      # match pa name with self.name
+      tmp = list(filter(lambda item: item['name'] == self.name,
+                        Volume.data['sources']))
     elif self.wtype == 'sink-input':
       # match pa index with self.name
       try:  # for int casting
