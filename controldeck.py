@@ -3,6 +3,12 @@
 HTML style powered by Quasar
 
 NOTE: currently buttons only updated on page reload
+
+Icon string
+https://quasar.dev/vue-components/icon#webfont-usagehttps://quasar.dev/vue-components/icon#webfont-usage
+for example:
+  without prefix uses material-icons https://fonts.google.com/icons?icon.set=Material+Icons
+  "fas fa-" uses fontawesome-v5 https://fontawesome.com/icons
 """
 
 import sys
@@ -321,7 +327,7 @@ class Slider(Div):
 class Volume(Div):
   # class variables
   data = {}                   # pulseaudio info for all sinks
-  icon_muted = 'volume_mute'  # default icon for muted state, 'volume_off' better for disabled or not found?
+  icon_muted = 'volume_mute'  # default icon for muted state, 'volume_off' better for disabled?
   icon_unmuted = 'volume_up'  # default icon for unmuted state
   last_update = 0             # used for updates. init set to zero so the 1st diff is large to go into update at startup
 
@@ -330,8 +336,8 @@ class Volume(Div):
     self.slider = None        # for handle methods to access slider
 
     # default **kwargs
-    self.wtype = 'sink'       # sink (loudspeaker) or sink-input (app output)
-    self.name = ''            # pulseaudio sink name
+    self.wtype = 'sink'       # sink (loudspeaker), source (microphone) or sink-input (app output)
+    self.name = ''            # pulseaudio sink or source name
     self.description = ''     # badge name
 
     super().__init__(**kwargs)
@@ -342,6 +348,11 @@ class Volume(Div):
       if self.wtype == 'sink':
         cmdl_toggle = 'pactl set-sink-mute {name} toggle'
         cmdl_value = 'pactl set-sink-volume {name} {value}%'
+      if self.wtype == 'source':
+        cmdl_toggle = 'pactl set-source-mute {name} toggle'
+        cmdl_value = 'pactl set-source-volume {name} {value}%'
+        self.icon_muted = 'mic_none'  # default icon for muted state, 'mic_off' better for disabled?
+        self.icon_unmuted = 'mic'     # default icon for unmuted state
       elif self.wtype == 'sink-input':
         cmdl_toggle = 'pactl set-sink-input-mute {name} toggle'
         cmdl_value = 'pactl set-sink-input-volume {name} {value}%'
@@ -539,7 +550,7 @@ def widget_load(config) -> dict:
         # TODO: empty using label class, like an alias?
         args = [{'widget-class': 'Empty',
                  'type': wid_type}]
-      if wid_type == 'label':
+      elif wid_type == 'label':
         args = [{'widget-class': Label,
                  'type': wid_type,
                  'text': wid_name}]
@@ -568,6 +579,13 @@ def widget_load(config) -> dict:
                  'description': config.get(i, 'description', fallback=''),
                  }]
       elif wid_type == 'sink':
+        # volume sliders
+        args = [{'widget-class': Volume,
+                 'type': wid_type,
+                 'name': wid_name,
+                 'description': config.get(i, 'description', fallback=''),
+                 }]
+      elif wid_type == 'source':
         # volume sliders
         args = [{'widget-class': Volume,
                  'type': wid_type,
