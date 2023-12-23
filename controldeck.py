@@ -199,12 +199,18 @@ class Button(QBtn):
     self.command = ''             # command to run on click
     self.state = ''               # output of the state check command
     self.state_command = ''       # command to check the unclicked state
+    self.color_bg = kwargs.pop('color_bg', '')
+    self.color_fg = kwargs.pop('color_fg', '')
     super().__init__(**kwargs)
 
     self.style = "width: 90px;"
     self.style += "min-height: 77px;"   # image + 2 text lines
     self.style += "border: 1px solid var(--c-blue-grey-8);"  # #455a64 blue-grey-8
     self.style += "line-height: 1em;"
+    if self.color_bg:
+      self.style += f"background-color: {self.color_bg};"
+    if self.color_fg:
+      self.style += f"color: {self.color_fg} !important;"
 
     # if DEBUG:
     #   print(f'[DEBUG] button: {self.text}; image: {self.image}; exists: {path.exists(self.image)}')
