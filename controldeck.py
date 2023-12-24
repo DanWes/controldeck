@@ -280,9 +280,12 @@ class Slider(Div):
     self.command = ''         # command to run on click
     self.state_command = ''   # command to check the current state
 
-    self.min = float(kwargs.pop('min', 0))
-    self.max = float(kwargs.pop('max', 100))
-    self.step = float(kwargs.pop('step', 1))
+    self.min = kwargs.pop('min', '0')
+    self.min = float(self.min) if self.min else 0
+    self.max = kwargs.pop('max', '100')
+    self.max = float(self.max) if self.max else 100
+    self.step = kwargs.pop('step', '1')
+    self.step = float(self.step) if self.step else 1
     super().__init__(**kwargs)
     self.icon = self.icon if self.icon else 'tune'
     self.style = "width:286px;"  # three buttons and the two spaces
