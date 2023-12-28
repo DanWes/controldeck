@@ -297,7 +297,10 @@ class Slider(Div):
     badge_name = self.description if self.description else self.name
     value = self.min
     if self.state_command:
-      value = float(process(self.state_command, shell=True))
+      try:
+        value = float(process(self.state_command, shell=True))
+      except Exception as e:
+        print(e)
 
     # 1st row; badge
     badge = QBadge(
