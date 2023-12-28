@@ -1,16 +1,22 @@
 [Unit]
 Description=ControlDeck
 ConditionFileIsExecutable=/usr/bin/controldeck
-After=network.target
+After=systemd-user-sessions.service getty@tty1.service plymouth-quit.service systemd-logind.service network.target
+PartOf=graphical-session.target
 
 [Service]
 Environment=PYTHONUNBUFFERED=1
+# add a pause to assure /etc/X11/xinit/xinitrc.d/50-systemd-user.sh to run
+# this will add DISPLAY and XAUTHORITY env
+# ExecStartPre=/bin/sleep 5
+ExecStartPre=/bin/sh -c '(while test ! -v DISPLAY -o ! -v XAUTHORITY; do echo "wait for DISPLAY and XAUTHORITY"; sleep 2; done; ech>
+# allowed time for the start
 TimeoutStartSec=30
-#ExecStartPre=/bin/sh -c 'source /etc/profile'
 ExecStart=/usr/bin/controldeck -D
 Restart=on-failure
 RestartSec=4
 StandardOutput=journal
 
 [Install]
-WantedBy=default.target
+#WantedBy=default.target
+WantedBy=graphical-session.target
