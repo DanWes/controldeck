@@ -5,23 +5,27 @@ HTML style powered by Quasar
 NOTE: currently buttons only updated on page reload
 
 Icon string
-https://quasar.dev/vue-components/icon#webfont-usagehttps://quasar.dev/vue-components/icon#webfont-usage
+- unicode
+- https://quasar.dev/vue-components/icon#webfont-usagehttps://quasar.dev/vue-components/icon#webfont-usage
 for example:
-  without prefix uses material-icons https://fonts.google.com/icons?icon.set=Material+Icons
-  "fas fa-" uses fontawesome-v5 https://fontawesome.com/icons
+  - 💡
+  - without prefix uses material-icons https://fonts.google.com/icons?icon.set=Material+Icons
+  - "fas fa-" uses fontawesome-v5 https://fontawesome.com/v5/search?m=free
 """
 
 import sys
-from os import getcwd, path, sep, makedirs
+import os
 import shutil
 import shlex
-from subprocess import Popen, PIPE, STDOUT
+import subprocess
 from configparser import ConfigParser
 import re
 import json
 import time
 import datetime
 import argparse
+import textwrap
+import threading
 from addict import Dict  # also used in justpy
 
 APP_NAME = "ControlDeck"
@@ -30,11 +34,11 @@ COLOR_PRIME_TEXT = "blue-grey-7"
 COLOR_SELECT = "light-blue-9"
 DEBUG = False
 
-CONFIG_DIR = path.join(path.expanduser("~"), '.config', APP_NAME.lower())
+CONFIG_DIR = os.path.join(os.path.expanduser("~"), '.config', APP_NAME.lower())
 CONFIG_FILE_NAME = APP_NAME.lower() + '.conf'
-CONFIG_FILE = path.join(CONFIG_DIR, CONFIG_FILE_NAME)
-CACHE_DIR = path.join(path.expanduser('~'), '.cache', APP_NAME.lower())
-STATIC_DIR = path.join(CACHE_DIR, 'static')
+CONFIG_FILE = os.path.join(CONFIG_DIR, CONFIG_FILE_NAME)
+CACHE_DIR = os.path.join(os.path.expanduser('~'), '.cache', APP_NAME.lower())
+STATIC_DIR = os.path.join(CACHE_DIR, 'static')
 
 # justpy config overwrite
 # NEEDS to be done BEFORE loading justpy but AFTER jpcore.justpy_config.JpConfig
@@ -90,7 +94,11 @@ from justpy import (
 def tohtml(text):
   return text.replace("\n", "<br>")
 
-def process(command_line, shell=False, output=True, stdout=PIPE, stderr=STDOUT):
+# output good for short / very fast processes, this will block until done
+# callback good for long processes
+def process(
+    command_line, shell=False, stdout=subprocess.PIPE,
+    stderr=subprocess.STDOUT, output=True, callback=None):
   try:
     # with shell=True args can be a string
     # detached process https://stackoverflow.com/a/65900355/992129 start_new_session
@@ -105,14 +113,32 @@ def process(command_line, shell=False, output=True, stdout=PIPE, stderr=STDOUT):
     else:
       args = shlex.split(command_line)
     # print(args)
-    result = Popen(args, stdout=stdout, stderr=stderr, shell=shell, start_new_session=True)
-    if output:
-      res = result.stdout.read().decode("utf-8").rstrip()
-      result.kill()  # does not help to unblock
-      # print(res)
-      return res
+    popen_args = (args, )
+    popen_kwargs = dict(
+      stdout=stdout,
+      stderr=stderr,
+      shell=shell,
+      start_new_session=True,
+    )
+    if callback is not None:
+      def run_in_thread(callback, popen_args, popen_kwargs):
+        proc = subprocess.Popen(*popen_args, **popen_kwargs)
+        proc.wait()
+        callback()
+      thread = threading.Thread(
+        target=run_in_thread,
+        args=(callback, popen_args, popen_kwargs))
+      thread.start()
+    else:
+      # proc = subprocess.Popen(args, stdout=stdout, stderr=stderr, shell=shell, start_new_session=True)
+      proc = subprocess.Popen(*popen_args, **popen_kwargs)
+      if output:
+        res = proc.stdout.read().decode("utf-8").rstrip()
+        proc.kill()  # does not help to unblock
+        # print(res)
+        return res
   except Exception as e:
-    print(f"{e} failed!")
+    print(f"process '{e}' failed!")
 
 def config_load(conf=''):
   config = ConfigParser(strict=False)
@@ -121,20 +147,40 @@ def config_load(conf=''):
     config_file = conf
   else:
     # check if config file is located at the script's location
-    config_file = path.join(path.dirname(path.realpath(__file__)), CONFIG_FILE_NAME)  # realpath; resolve symlink
-    if not path.exists(config_file):
+    config_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), CONFIG_FILE_NAME)  # realpath; resolve symlink
+    if not os.path.exists(config_file):
       # if not, use the file inside .config
-      makedirs(CONFIG_DIR, exist_ok=True)
+      os.makedirs(CONFIG_DIR, exist_ok=True)
       config_file = CONFIG_FILE
   try:
-    config.read(path.expanduser(config_file))
+    config.read(os.path.expanduser(config_file))
   except Exception as e:
     print(f"{e}")
   #print(config.sections())
   return config
 
+class Tile(QDiv):
+  """
+  for empty spots and labels
+  """
+  def __init__(self, **kwargs):
+    super().__init__(**kwargs)
+    self.style = "width: 90px;"
+    self.style += "min-height: 70px;"
+
+class Empty(Tile):
+  """
+  empty slot, for horizontal arrangement, text is ignored, no bg color etc.
+
+  Args:
+    **kwargs:
+      - wtype: 'empty' (any string atm)
+  """
+  def __init__(self, **kwargs):
+    super().__init__(**kwargs)
+
 # TODO: colors definable in config
-class Label(QDiv):
+class Label(Tile):
   """
   Args:
     **kwargs:
@@ -143,16 +189,13 @@ class Label(QDiv):
   """
   def __init__(self, **kwargs):
     super().__init__(**kwargs)
-    self.style = "width: 90px;"
-    self.style += "min-height: 70px;"
-    if self.wtype != 'empty':
-      self.classes = f"q-pa-sm text-blue-grey-5 text-bold text-center bg-blue-grey-10"
-      # bg-light-blue-10
-      #self.style += "font-size: 14px;"
-      self.style += "line-height: 1em;"
-      #self.style += "border-radius: 7px;"
-      self.classes += " q-btn--push"  # border-radius: 7px;
-      self.text = self.text.upper()
+    self.classes = f"q-pa-sm text-blue-grey-5 text-bold text-center bg-blue-grey-10"
+    # bg-light-blue-10
+    #self.style += "font-size: 14px;"
+    self.style += "line-height: 1em;"
+    #self.style += "border-radius: 7px;"
+    self.classes += " q-btn--push"  # border-radius: 7px;
+    self.text = self.text.upper()
     #print()
     #print(self)
 
@@ -161,25 +204,31 @@ class Button(QBtn):
   """
   Args:
     **kwargs:
-      - text: button text in normal state (unpressed)
-      - text_alt: button text in active state (pressed)
+      - text: button id text
+      - description: button text in normal state, if not set fallback to `text`
+      - description_alt: button text in active state [not in use yet]
       - wtype: 'button' (any string atm) for a button
       - command: command to execute on click
-      - command_alt: command to execute on click in active state
+      - command_alt: if defined command to execute on click in active state
+        otherwise using `command`
+      - command_output: bool to grab command output or not
       - color_bg: background color
       - color_fg: foreground color
-      - state_pattern: string defining the normal state (unpressed) [NEDDED?]
+      - state_pattern: string defining the normal state [NEDDED?]
       - state_pattern_alt: string defining the alternative state
-        (active, pressed)
       - state_command: command to execute to compare with state_pattern*
-      - icon: icon in normal state (unpressed)
+      - icon: icon in normal state
       - icon_alt: icon in active state
+      - image: image in normal state, absolute path
+      - image_alt: image in active state, absolute path
+
+  _alt is for and being in the alternative / active / pressed state,
+  without _alt is for and being in the normal / unpressed state.
   
   Usage:
     Button(text, text_alt, wtype, command, command_alt,
-           color_bg=, color_fg=, state_pattern, state_pattern_alt,
-           state_command,
-           icon, icon_alt, image, image_alt,
+           color_bg, color_fg, state_pattern, state_pattern_alt,
+           state_command, icon, icon_alt, image, image_alt,
            a)
   """
   def __init__(self, **kwargs):
@@ -194,15 +243,18 @@ class Button(QBtn):
 
     # default **kwargs
     self.wtype = None             # button or empty
+    self.description = ''         # button text
     self.image = ''               # used for files like svg and png
                                   # e.g. /usr/share/icons/breeze-dark/actions/24/media-playback-stop.svg
     self.command = ''             # command to run on click
+    self.command_output = False
     self.state = ''               # output of the state check command
     self.state_command = ''       # command to check the unclicked state
     self.color_bg = kwargs.pop('color_bg', '')
     self.color_fg = kwargs.pop('color_fg', '')
     super().__init__(**kwargs)
 
+    self.text = self.description if self.description else self.text
     self.style = "width: 90px;"
     self.style += "min-height: 77px;"   # image + 2 text lines
     self.style += "border: 1px solid var(--c-blue-grey-8);"  # #455a64 blue-grey-8
@@ -212,60 +264,109 @@ class Button(QBtn):
     if self.color_fg:
       self.style += f"color: {self.color_fg} !important;"
 
-    # if DEBUG:
-    #   print(f'[DEBUG] button: {self.text}; image: {self.image}; exists: {path.exists(self.image)}')
-    if self.image and path.exists(self.image):
+    if self.image and os.path.exists(self.image):
       # copy image files into the static folder
-      basename = path.basename(self.image)
+      basename = os.path.basename(self.image)
         # e.g. media-playback-stop.svg
-      staticfile = path.join(STATIC_DIR, basename)
+      staticfile = os.path.join(STATIC_DIR, basename)
         # e.g. <user-home>/.cache/controldeck/static/media-playback-stop.svg
-      if not path.exists(staticfile):
+      if not os.path.exists(staticfile):
         shutil.copy2(self.image, staticfile)
         if DEBUG:
-          print(f'[DEBUG] copy {self.image} to {staticfile}')
+          print(f'[DEBUG.btn.{self.text}] copy {self.image} to {staticfile}')
       self.icon = f"img:/static/{basename}"
         # e.g. img:/static/media-playback-stop.svg
       # <q-icon name="img:data:image/svg+xml;charset=utf8,<svg xmlns='http://www.w3.org/2000/svg' height='140' width='500'><ellipse cx='200' cy='80' rx='100' ry='50' style='fill:yellow;stroke:purple;stroke-width:2' /></svg>" />
       # <q-btn icon="img:data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==" ... />
-      # if DEBUG:
-      #   print(f'[DEBUG] button: {self.text}; icon: {staticfile}; exists: {path.exists(self.image)}')
-      #   print(f'[DEBUG] button: {self.text}; icon: {self.icon}')
+      if DEBUG:
+        print(f'[DEBUG.btn.{self.text}] icon: {self.icon}')
 
     if self.command != '':
       self.update_state()
-      tt = f"command: {self.command.strip()}"
-      if self.state_command:
-        tt += f"\nstate: {self.state}"
-      QTooltip(a=self, text=tt, delay=500) # setting style white-space:pre does not work, see wp.css below
-      def click(self, msg):
-        if self.command != '':
-          self.update_state()
-          if DEBUG:
-            print(f"[btn] command: {self.command}")
-          process(self.command, shell=True, output=False)  # output=True freezes controldeck until process finished (until e.g. an emacs button is closed)
-      self.on('click', click)
+      # setting style white-space:pre does not work, see wp.css below
+      self.tooltip = QTooltip(a=self, delay=500)
+      self.update_tooltip()
+      self.on('click', self.click)
+
+  async def click(self, msg):
+    if self.command != '':
+      if DEBUG:
+        print(f"[DEBUG.btn.{self.text}] command: {self.command}")
+      # output=True freezes controldeck until process finished (until e.g. an emacs button is closed)
+      output = False
+      if DEBUG and self.command_output:
+        output = True
+
+      process(self.command, shell=True, output=output)
+
+      # def upd():
+      #   time.sleep(2)
+      #   print('foo')
+      #   self.text = ''
+      #   self.update_state()
+      #   self.update_tooltip()
+      #   self.update()
+      #   #self.wp.update()
+      #   #wp.update()
+      #   #await msg.page.update()
+      #   print('baz')
+      # process(self.command, shell=True, output=True, callback=upd)
+
+      if DEBUG:
+        print(f"[DEBUG.btn.{self.text}] output: {output}")
+      # TODO: command and state matching: command is running async
+      # and not 'finished' for state update. wait is also not
+      # 'possible' bc/ it could be long running process
+      time.sleep(1)
+      self.update_state()
+      self.update_tooltip()
+    else:
+      return True
+
+  def update_tooltip(self):
+    if '\n' in self.command.strip():
+      ttt = f"command:\n{textwrap.indent(self.command.strip(), '  ')}"
+    else:
+      ttt = f"command: {self.command.strip()}"
+    if self.state_command:
+      if '\n' in self.state:
+        ttt += f"\nstate:\n{textwrap.indent(self.state, '  ')}"
+      else:
+        ttt += f"\nstate: {self.state}"
+    self.tooltip.text = ttt
 
   def is_state_alt(self):
-    return self.state == self.state_pattern_alt
+    # return repr(self.state) == repr(self.state_pattern_alt).replace(r'\\', '\\')
+    return repr(self.state) == repr(self.state_pattern_alt)
 
   def update_state(self):
     if self.state_command != '':
       self.state = process(self.state_command, shell=True)
       if DEBUG:
-        print("[btn] update btn state")
-        print(f"[btn] text: {self.text}")
-        print(f"[btn] state (before click): {self.state}")
-        print(f"[btn] state_command: {self.state_command}")
-        print(f"[btn] state_pattern: {self.state_pattern}")
-        print(f"[btn] state_pattern_alt: {self.state_pattern_alt}")
-        print(f"[btn] is_state_alt: {self.is_state_alt()}")
+        print(f"[DEBUG.btn.{self.text}] updated btn state")
+        print(f"[DEBUG.btn.{self.text}] state_command: {self.state_command}")
+        print(f"[DEBUG.btn.{self.text}] state: {repr(self.state)} # state_pattern: {repr(self.state_pattern)} # state_pattern_alt: {repr(self.state_pattern_alt)}")
+        print(f"[DEBUG.btn.{self.text}] is_state_alt: {self.is_state_alt()}")
+      # TODO: update state instead of appending
       if self.is_state_alt():
         # self.style += "border: 1px solid green;"
         # self.style += "border-bottom: 1px solid green;"
         self.style += "border: 1px solid var(--c-light-blue-9);"
         # self.style += "border-bottom: 1px solid var(--c-light-blue);"
+      else:
+        self.style += "border: 1px solid var(--c-blue-grey-8);"
+    else:
+      return True
 
+  # can be used to update all buttons on event
+  # is like a full reload, and the page is blocked
+  # def react(self, data):
+  #   # print(f"self {self}")
+  #   # print(f"data {data}")
+  #   self.update_state()
+  #   if hasattr(self, 'tooltip'):
+  #     self.update_tooltip()
+  #   # print(f"react done")
 
 class Slider(Div):
   def __init__(self, **kwargs):
@@ -556,6 +657,11 @@ class VolumeGroup():
     for i in Volume.data['sink-inputs']:
       Volume(a=a, name=i['index'], wtype='sink-input')
 
+async def update(self, msg):
+  for i,j in Button.instances.items():
+    if type(j) == Button:
+      j.update_state()
+
 async def reload(self, msg):
   await msg.page.reload()
 
@@ -595,7 +701,7 @@ def widget_load(config) -> dict:
     if iname is not None:
       tab_name = iname.group(1)[:-1] if iname.group(1) is not None else ''  # remove collon, id is '' if nothing is given
       sec_id = iname.group(2)[:-1] if iname.group(2) is not None else ''  # remove dot, id is '' if nothing is given
-      wid_type = iname.group(3)
+      wid_type = iname.group(3).lower()
       wid_name = i[iname.end(0)+1:]  # rest; after last group, can have all chars including . and :
       # print('group   ', iname.group(0))
       # print('tab_id  ', tab_name)
@@ -605,7 +711,7 @@ def widget_load(config) -> dict:
       # print('')
       if wid_type == 'empty':
         # TODO: empty using label class, like an alias?
-        args = [{'widget-class': 'Empty',
+        args = [{'widget-class': Empty,
                  'type': wid_type}]
       elif wid_type == 'label':
         args = [{'widget-class': Label,
@@ -616,11 +722,13 @@ def widget_load(config) -> dict:
         args = [{'widget-class': Button,
                  'type': wid_type,
                  'text': wid_name,
-                 'text-alt': config.get(i, 'text-alt', fallback=''),
+                 'description': config.get(i, 'description', fallback=''),
+                 'description-alt': config.get(i, 'description-alt', fallback=''),
                  'color-bg': config.get(i, 'color-bg', fallback=''),
                  'color-fg': config.get(i, 'color-fg', fallback=''),
                  'command': config.get(i, 'command', fallback=''),
                  'command-alt': config.get(i, 'command-alt', fallback=''),
+                 'command-output': config.get(i, 'command-output', fallback='False').title() == 'True',
                  'state': config.get(i, 'state', fallback=''),
                  'state-alt': config.get(i, 'state-alt', fallback=''),
                  'state-command': config.get(i, 'state-command', fallback=''),
@@ -834,9 +942,10 @@ async def application(request):
 
   QSpace(a=toolbar)
 
+  # BUTTON edit config
   def toggle_edit_config(self, msg):
     self.dialog.value = True
-    if path.exists(CONFIG_FILE):
+    if os.path.exists(CONFIG_FILE):
       self.dialog_label.text = CONFIG_FILE
       with open(CONFIG_FILE, encoding='utf-8') as file:
         self.dialog_input.value = file.read()
@@ -858,7 +967,7 @@ async def application(request):
   QSpace(a=edit_dialog_bar)
   QSeparator(vertical=True,spaced=True,a=edit_dialog_bar)
   def edit_dialog_save(self, msg):
-    if path.exists(CONFIG_FILE):
+    if os.path.exists(CONFIG_FILE):
       with open(CONFIG_FILE, mode='w', encoding='utf-8') as file:
         file.write(self.dialog_input.value)
     self.dialog_input.remove_class('changed')
@@ -964,7 +1073,7 @@ async def application(request):
   edit_config = QBtn(
     dense=True,
     flat=True,
-    icon='edit',
+    icon='edit',  # not working: edit_note, app_registration
     a=toolbar,
     click=toggle_edit_config,
     dialog=edit_dialog,
@@ -973,22 +1082,34 @@ async def application(request):
   )
   QTooltip(a=edit_config, text='Config')
 
+  # BUTTON dark mode toggle
   # async def dark_light_mode_toggle(self, msg):
   #   if self.icon == 'dark_mode':
   #     self.icon = 'light_mode'
   #   elif self.icon == 'light_mode':
   #     self.icon = 'dark_mode'
+  # icon='contrast' not working
   btn_toogle_dark = ToggleDarkModeBtn(
-    label='', icon='settings_brightness', dense=True, flat=True, a=toolbar,
+    label='', icon='brightness_medium', dense=True, flat=True, a=toolbar,
     #click=dark_light_mode_toggle
   )
   QTooltip(a=btn_toogle_dark, text='Toggle dark/light mode')
+
+  # BUTTON fullscreen
   async def toggle_screen(self, msg):
     await msg.page.run_javascript('Quasar.AppFullscreen.toggle()')
-  btn_fullscreen = QBtn(dense=True, flat=True, icon='crop_square', a=toolbar, click=toggle_screen)
+  btn_fullscreen = QBtn(dense=True, flat=True, icon='fullscreen', a=toolbar, click=toggle_screen)
   QTooltip(a=btn_fullscreen, text='Toggle fullscreen')
-  btn_reload = QBtn(dense=True, flat=True, icon="redo", click=reload, a=toolbar)
-  QTooltip(a=btn_reload, text='Reload')
+
+  # BUTTON update
+  btn_update = QBtn(dense=True, flat=True, icon="update", click=update, a=toolbar)
+  QTooltip(a=btn_update, text='Update buttons')
+
+  # BUTTON reload
+  btn_reload = QBtn(dense=True, flat=True, icon="refresh", click=reload, a=toolbar)
+  QTooltip(a=btn_reload, text='Reload config')
+
+  # BUTTON close
   if "gui" in request.query_params:
     btn_close = QBtn(dense=True, flat=True, icon="close", click=kill_gui, a=toolbar)
     QTooltip(a=btn_close, text='Close')
@@ -1013,10 +1134,10 @@ async def application(request):
             classes="row q-pa-sm q-gutter-sm",
             a=tab_panel[tab_name])
         # TODO: empty using label class, like an alias?
-        if j['widget-class'] == 'Empty':
-          Label(text='',
-                wtype=j['type'],
-                a=eval(var))
+        if j['widget-class'] == Empty:
+          j['widget-class'](
+            wtype=j['type'],
+            a=eval(var))
         if j['widget-class'] == Label:
           j['widget-class'](
             text=j['text'],
@@ -1024,8 +1145,10 @@ async def application(request):
             a=eval(var))
         if j['widget-class'] == Button:
           j['widget-class'](
-            text=j['text'], text_alt=j['text-alt'],
+            text=j['text'],
             wtype=j['type'],
+            description=j['description'],
+            description_alt=j['description-alt'],
             command=j['command'], command_alt=j['command-alt'],
             color_bg=j['color-bg'], color_fg=j['color-fg'],
             state_pattern=j['state'], state_pattern_alt=j['state-alt'],
@@ -1088,9 +1211,30 @@ def hello_function():
   wp.add(P(text='Hello there!', classes='text-5xl m-2'))
   return wp
 
+# import asyncio
+# async def clock():
+#   i = 0
+#   while True:
+#     i += 1
+#     print(f"update clock # {i}")
+#     for i,j in Button.instances.items():
+#       if type(j) == Button:
+#         pass
+#         #print(j)
+#         run_task(j.update_state_async())
+#         #await j.update_state()
+#         #j.update_state()
+#     # clock_div.text = time.strftime("%a, %d %b %Y, %H:%M:%S", time.localtime())
+#     run_task(wp.update())
+#     await asyncio.sleep(20)
+
+# async def clock_init():
+#   print("start update clock")
+#   run_task(clock())
+
 def main(args, host, port):
-  if not path.exists(STATIC_DIR):
-    makedirs(STATIC_DIR, exist_ok=True)
+  if not os.path.exists(STATIC_DIR):
+    os.makedirs(STATIC_DIR, exist_ok=True)
   justpy(host=host, port=port, start_server=True)
   # this process will run as main loop
 
@@ -1118,10 +1262,10 @@ def cli():
     DEBUG = True
     print('[DEBUG] args:', args)
     print('[DEBUG] __file__:', __file__)
-    print('[DEBUG] cwd:', getcwd())
-    print('[DEBUG] CONFIG_DIR:', CONFIG_DIR, "exists", path.exists(CONFIG_DIR))
-    print('[DEBUG] CACHE_DIR:', CACHE_DIR, "exists", path.exists(CACHE_DIR))
-    print('[DEBUG] STATIC_DIR:', STATIC_DIR, "exists", path.exists(STATIC_DIR))
+    print('[DEBUG] cwd:', os.getcwd())
+    print('[DEBUG] CONFIG_DIR:', CONFIG_DIR, "exists", os.path.exists(CONFIG_DIR))
+    print('[DEBUG] CACHE_DIR:', CACHE_DIR, "exists", os.path.exists(CACHE_DIR))
+    print('[DEBUG] STATIC_DIR:', STATIC_DIR, "exists", os.path.exists(STATIC_DIR))
     import starlette.routing
     mounts = [i for i in app.routes if type(i) == starlette.routing.Mount]
     mounts = [{'path': i.path, 'name': i.name, 'directory': i.app.directory} for i in mounts]
