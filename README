@@ -1,8 +1,15 @@
 Install
 
   Requirements:
-  - python package justpy, the framework: pip install justpy --upgrade
-  - (optionally) for volume buttons: libpulse
+  - controldeck
+    - python package justpy, the framework: pip install justpy --upgrade
+    - (optionally) for volume buttons: libpulse
+  - controldeck-gui
+    - render engine
+      - GTK: python-gobject, python-cairo, webkit2gtk>=2.22
+      - QT: qt5-webkit, python-qtpy
+      - QT5: python-pyqt5-webengine, python-pyqt5
+      - QT: pyside2, pyside6
 
   local:
     ./setup.sh

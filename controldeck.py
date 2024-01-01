@@ -293,11 +293,11 @@ class Button(QBtn):
       if DEBUG:
         print(f"[DEBUG.btn.{self.text}] command: {self.command}")
       # output=True freezes controldeck until process finished (until e.g. an emacs button is closed)
-      output = False
+      outputting = False
       if DEBUG and self.command_output:
-        output = True
+        outputting = True
 
-      process(self.command, shell=True, output=output)
+      output = process(self.command, shell=True, output=outputting)
 
       # def upd():
       #   time.sleep(2)
@@ -1150,6 +1150,7 @@ async def application(request):
             description=j['description'],
             description_alt=j['description-alt'],
             command=j['command'], command_alt=j['command-alt'],
+            command_output=j['command-output'],
             color_bg=j['color-bg'], color_fg=j['color-fg'],
             state_pattern=j['state'], state_pattern_alt=j['state-alt'],
             state_command=j['state-command'],
