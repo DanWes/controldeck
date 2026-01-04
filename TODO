@@ -1,0 +1,14 @@
+in cli mode
+- config is loaded in main and application. config load in app needs info about cli args.config for the optionally new path
+- pactl json Invalid non-ASCII character: 0xffffffc3
+
+
+add state-command into the button hover tooltip
+
+
+update buttons function (not reloading everything)
+is updating the borders to active or inactive but does not update the state info in the hovered tooltip
+
+
+command-alt is not implemented, to run another command if button is in active state, e.g. to kill a command
+- when implementing then also add info of command-alt into button hover tooltip

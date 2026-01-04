@@ -1,4 +1,22 @@
-Install
+
+
+virtualenv ~/.local/venv/controldeck
+
+source ~/.local/venv/controldeck/bin/activate
+
+# web interface
+pip install --upgrade nicegui
+
+# gui wrapper
+pip install --upgrade pywebview
+pip install --upgrade "pywebview[qt]"
+
+# optional for volume buttons
+sudo pacman -S libpulse
+
+
+
+# OLD
 
   Requirements:
   - controldeck
